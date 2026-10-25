@@ -1,0 +1,66 @@
+sourceId: "index_0689"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0689/raw/patients_ 24gp.by.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "FullName"
+        birth_date: "BirthDate"
+        sex: "Sex"
+    address:
+      columns:
+        address: "Address"
+    raw_metadata:
+        columns:
+          doctor_name: "DistrictDoctor"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                doctor_name: "doctor_name"
+            filter: true
+gold:
+  remain: [ "address" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+        - "sex"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

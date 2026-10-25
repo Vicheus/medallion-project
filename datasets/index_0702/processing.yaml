@@ -1,0 +1,90 @@
+sourceId: "index_0702"
+
+bronze:
+  read:
+    path: "136_msbr.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    forces:
+      columns:
+        tag_number: "Личный номер"
+        rank: "В_звание"
+        position: "Должность"
+        unit_name_part_1: "Подразделение"
+        unit_name_part_2: "Развернутое подразделение"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank:
+              fn: "regexp_replace"
+              column: "rank"
+              pattern:
+                lit: " [кмс]/с$"
+            position: "position"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "136 мотострелковая бригада"
+                - fn: "when"
+                  cases:
+                    condition:
+                      fn: "eq"
+                      column: "unit_name_part_1"
+                      value: "unit_name_part_2"
+                    value: "unit_name_part_1"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - "unit_name_part_1"
+                      - "unit_name_part_2"
+            category:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "endswith"
+                    column: "rank"
+                    value:
+                      lit: " к/с"
+                  value:
+                    lit: "контрактная служба"
+                - condition:
+                    fn: "endswith"
+                    column: "rank"
+                    value:
+                      lit: " с/с"
+                  value:
+                    lit: "срочная служба"
+                - condition:
+                    fn: "endswith"
+                    column: "rank"
+                    value:
+                      lit: " м/с"
+                  value:
+                    lit: "по мобилизации"
+          filter: true
+gold:
+  remain: [ "forces" ]

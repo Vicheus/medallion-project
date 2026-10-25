@@ -1,0 +1,131 @@
+# Parsetron results
+
+## About row data
+
+> - File path: driver_info_results.csv
+> - Total rows: 54120
+
+### Schema
+```
+root
+ |-- client_driver_id: string (nullable = true)
+ |-- client_id: string (nullable = true)
+ |-- surname: string (nullable = true)
+ |-- name: string (nullable = true)
+ |-- middlename: string (nullable = true)
+ |-- date_of_birth: string (nullable = true)
+ |-- expiration_date: string (nullable = true)
+ |-- license_number: string (nullable = true)
+ |-- foreign_format_license: string (nullable = true)
+ |-- license_date: string (nullable = true)
+ |-- experience: string (nullable = true)
+ |-- passport_number: string (nullable = true)
+ |-- tax_number: double (nullable = true)
+ |-- is_foreign_number: string (nullable = true)
+ |-- passport_author: string (nullable = true)
+ |-- passport_date: string (nullable = true)
+ |-- department_code: string (nullable = true)
+ |-- phone: string (nullable = true)
+ |-- is_foreign_phone: integer (nullable = true)
+ |-- status: integer (nullable = true)
+ |-- status_payment_doc: string (nullable = true)
+ |-- seniority_surcharge: double (nullable = true)
+ |-- isDeleted: integer (nullable = true)
+ |-- created_at: timestamp (nullable = true)
+ |-- updated_at: timestamp (nullable = true)
+ |-- psfl_pressed_datetime: string (nullable = true)
+ |-- driverId: integer (nullable = true)
+
+```
+
+### Data sample
+```
+|   client_driver_id |   client_id | surname       | name      | middlename    | date_of_birth       | expiration_date     | license_number   |   foreign_format_license | license_date   | experience                                                      | passport_number   |    tax_number |   is_foreign_number | passport_author                                                        | passport_date   |   department_code | phone              |   is_foreign_phone |   status | status_payment_doc   |   seniority_surcharge |   isDeleted | created_at          | updated_at          | psfl_pressed_datetime   |   driverId |
+|-------------------:|------------:|:--------------|:----------|:--------------|:--------------------|:--------------------|:-----------------|-------------------------:|:---------------|:----------------------------------------------------------------|:------------------|--------------:|--------------------:|:-----------------------------------------------------------------------|:----------------|------------------:|:-------------------|-------------------:|---------:|:---------------------|----------------------:|------------:|:--------------------|:--------------------|:------------------------|-----------:|
+|                  1 |          20 | Петров        | Иван      | Васильевич    |                     |                     | вв132424         |                        0 | 2003-01-01     | 15                                                              | 2134 124242       | nan           |                   0 | вапвыпепуцк42ё34ё1ё1                                                   | 1990-09-14      |                   |                    |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          1 |
+|                  2 |          20 | Федоров       | Борис     | Викторович    |                     |                     | ё1242153562      |                        0 | 2018-12-26     | 25                                                              | 1111 111111       | nan           |                   0 | уеуц5е633                                                              | 2018-12-03      |                   |                    |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          2 |
+|                  3 |           4 | Васечкин      | Егор      | Борисович     |                     |                     | 12342542354      |                        0 | 2018-12-12     | 20                                                              | 2134 254345       | nan           |                   0 | панруенгн4ц413215547                                                   | 2018-12-03      |                   |                    |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          3 |
+|                  4 |         452 | Уваров        | Николай   | Михайлович    |                     |                     | 31 15 425817     |                        0 | 2014-03-01     | В - 19 лет С- 19 лет D -14 лет СЕ -14 лет                       | 1411 263476       | nan           |                   0 | Отдел. № 1 МО УФМС России по Белгородской обл. в г.Строитель           | 2012-08-28      |                   | +7 (980) 384 14 68 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          4 |
+|                  5 |         452 | Воскресенский | Игорь     | Сергеевич     |                     |                     | 31 34 921183     |                        0 | 2017-10-27     | В - 18 лет В1 - 18 лет С- 6 лет С1 - 6 лет СЕ - год С1Е - 1 год | 1404 № 215371     | nan           |                   0 | Разуменским отделением милиции Белгородского РОВД Белгородской области | 2003-09-03      |                   | +7 (920) 208 67 82 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          5 |
+|                  6 |         452 | Горбачев      | Александр | Иванович      |                     |                     | 31 24 856993     |                        0 | 2015-10-31     | В1-28 лет С1-28 лет D1-28 лет С1Е-28 лет                        | 1417 № 633896     | nan           |                   0 | Отделом УФМС России по Белгородской области в Белгородском районе      | 2017-05-16      |                   | +7 (980) 372 24 67 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          6 |
+|                  7 |         452 | Ольховиков    | Евгений   | Юрьевич       |                     |                     | 31 12 209796     |                        0 | 2013-01-10     | В-13 лет С-13 лет СЕ-5 лет                                      | 1408 № 905379     | nan           |                   0 | Отделением № 1 ОУФМС России по Белгородской области в г. Белгороде     | 2008-07-18      |                   | +7 (906) 601 55 81 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          7 |
+|                  8 |         452 | Николаев      | Олег      | Иванович      |                     |                     | 31 06 058490     |                        0 | 2012-06-22     | В-19 лет С-19 лет СЕ-19 лет                                     | 1409 № 080098     | nan           |                   0 | Отделением № 3 ОУФМС России по Белгородской области в г. Белгороде     | 2010-05-20      |                   | +7 (980) 526 99 94 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |          8 |
+|                  9 |         453 | Волков        | Николай   | Петрович      |                     |                     | 9901 696903      |                        0 | 1970-01-01     | Е-34года                                                        | 2009 118118       |   3.619e+11   |                   0 | Отделением УФМС России по Воронежской области в Острогожском районе    | 1970-01-01      |                   | +7 (910) 344 37 13 |                  0 |        1 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-10-27 16:13:01 |                         |          9 |
+|                 10 |         453 | Нижников      | Сергей    | Васильевич    | 1983-08-14 00:00:00 | 2028-08-31 00:00:00 | 9901 696139      |                        0 | 2018-08-31     | 10                                                              | 2004 445529       |   3.61901e+11 |                   0 | Острогожским РОВД Воронежской области                                  | 2005-04-13      |            362027 | +7 (987) 426 90 14 |                  0 |        1 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-10-27 16:20:34 |                         |         10 |
+|                 11 |         454 | Шилов         | Александр | Владимирович  |                     |                     | 3607560343       |                        0 | 2012-04-07     | ВС 14.01.2010 CE 20.05.2011 D 07.04.2012                        | 2011432237        | nan           |                   0 | отделением УФМС России по Воронежской области в Острогожском районе    | 2012-01-18      |                   | +7 (906) 350 76 53 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         11 |
+|                 12 |         454 | Забурунов     | Сергей    | Александрович |                     |                     | 36 ОС 304447     |                        0 | 2010-12-10     | ВСЕ с 1980                                                      | 2008 984584       |   3.62804e+11 |                   0 | отделением УФМС России по Воронежской обл. в Семилукском районе        | 2008-06-17      |                   | +7 (906) 587 05 76 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         12 |
+|                 13 |         455 | Петренко      | Александр | Андреевич     |                     |                     | 9901 720622      |                        0 | 2018-11-16     | С - 10 лет, СЕ - 3 мес.                                         | 2011 № 432759     | nan           |                   0 | ТП УФМС России по Воронежской области в Подгоренском районе            | 2012-02-15      |                   | +7 (905) 651 10 69 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         13 |
+|                 14 |         455 | Писменский    | Вячеслав  | Михайлович    |                     |                     | 3620 352338      |                        0 | 2015-02-13     | С - 18 лет, СЕ - 14 лет                                         | 2005 № 661676     | nan           |                   0 | Отделом Внутренних дел Грибановского района Воронежской области        | 2006-05-25      |                   | +7 (920) 462 51 97 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         14 |
+|                 15 |         455 | Колотнев      | Сергей    | Иванович      |                     |                     | 3623 804888      |                        0 | 2015-08-06     | С - 23 года, СЕ - 4 года                                        | 2018 № 187263     | nan           |                   0 | ГУ МВД России по Воронежской области                                   | 2018-05-16      |                   | +7 (920) 460 61 65 |                  0 |        2 | verification         |                     0 |           0 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         15 |
+|                 16 |         456 | Лунченко      | Владислав | Александрович |                     |                     | 61 18 254898     |                        0 | 2015-03-24     |                                                                 | 60 13 № 397087    | nan           |                   0 | Отделом УФМС России по Ростовской обл. в городе Каменск- Шахтинском    | 2013-09-04      |                   | +7 (900) 136 53 67 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         16 |
+|                 17 |         456 | Грибенюков    | Александр | Владимирович  |                     |                     | 61 ОХ 872549     |                        0 | 2009-12-11     |                                                                 | 60 05 № 023221    | nan           |                   0 | ОВД г. Каменск - Шахтинского Ростовской обл.                           | 2004-08-20      |                   | +7 (960) 192 36 12 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         17 |
+|                 18 |         456 | Могильный     | Михаил    | Юрьевич       |                     |                     | 61 30 238588     |                        0 | 2017-03-17     |                                                                 | 6003 724836       |   6.11401e+11 |                   0 | ОВД Каменского района Ростовской обл.                                  | 2003-04-02      |                   | +7 (903) 848 05 23 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         18 |
+|                 19 |         456 | Мусин         | Дмитрий   | Вазыхович     |                     |                     | 61 УА 926354     |                        0 | 2011-02-16     |                                                                 | 6004 138814       |   6.14708e+11 |                   0 | ОВД г. Каменск-Шахтинского Ростовской обл.                             | 2003-08-01      |                   | +7 (903) 403 89 09 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-10-24 11:27:30 |                         |         19 |
+|                 20 |         456 | Павлов        | Андрей    | Владимирович  |                     |                     | 64 15 144140     |                        0 | 2014-03-28     |                                                                 | 63 13 № 952428    | nan           |                   0 | ТП УФМС РОССИИ ПО САРАТОВСКОЙ ОБЛАСТИ В ГОРОДЕ ХВАЛЫНСКЕ               | 2013-11-22      |                   | +7 (918) 693 61 65 |                  0 |        2 | verification         |                     0 |           1 | 2023-07-27 21:49:26 | 2022-09-15 14:49:02 |                         |         20 |
+```
+
+
+## About final data
+
+### Schema
+```
+root
+ |-- names: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- birth_date: string (nullable = true)
+ |-- phones: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- documents: array (nullable = true)
+ |    |-- element: struct (containsNull = false)
+ |    |    |-- type: integer (nullable = true)
+ |    |    |-- serial: string (nullable = false)
+ |    |    |-- country: string (nullable = true)
+ |    |    |-- date_issue: string (nullable = true)
+ |    |    |-- date_expire: string (nullable = true)
+ |    |    |-- authority: string (nullable = true)
+ |    |    |-- authority_code: string (nullable = true)
+ |-- raw_metadata: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- actuality: string (nullable = true)
+
+```
+
+
+### Columns completeness
+
+| Column   | Completeness |
+|----------|--------------|
+| Names | 100.00% |
+| Birth_date | 21.30% |
+| Phones | 98.98% |
+| Documents | 93.12% |
+| Raw_metadata | 44.61% |
+| Actuality | 99.99% |
+
+
+
+### Data sample
+```
+| names                                 | birth_date   | phones          | documents                                                                                                                                                                                                                                                                                                                                         | raw_metadata                 | actuality   |
+|:--------------------------------------|:-------------|:----------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------|:------------|
+| ['Мухаметшин Марсель Хамитович']      |              | ['79870444352'] | [Row(type=3, serial='0203118113', country='RUS', date_issue='14.05.2011', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='8017584175', country='RUS', date_issue='15.07.2017', date_expire=None, authority='Отделом УФМС России по Республике Башкортостан в Чишминском р-не', authority_code=None)]                  |                              | 27.07.2023  |
+| ['Рыбалкин Николай Сергеевич']        |              | ['79604286618'] | [Row(type=3, serial='9906280163', country='RUS', date_issue='02.04.2019', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='0707978577', country='RUS', date_issue='28.11.2007', date_expire=None, authority='Отделом УФМС России по Ставропольскому краю в Шпаковском районе', authority_code=None)]                   |                              | 27.07.2023  |
+| ['Мосин Владимир Александрович']      |              | ['79874261167'] | [Row(type=0, serial='8018840019', country='RUS', date_issue='21.09.2018', date_expire=None, authority='МВД по Республике Башкортостан', authority_code=None)]                                                                                                                                                                                     | ['{"experience": "3 года"}'] | 27.07.2023  |
+| ['Иващенко Алексей Евгеньевич']       | 08.12.1980   | ['79155675257'] | [Row(type=3, serial='9915117468', country='RUS', date_issue='02.07.2020', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='1415487553', country='RUS', date_issue='04.08.2015', date_expire=None, authority='МП в Красногвардейском р-не МО УФМС России по Белгородской обл. в г. Алексеевка', authority_code=None)]   | ['{"experience": "10"}']     | 27.07.2023  |
+| ['Павлюкевич Эдуард Петрович']        |              | ['79680143173'] |                                                                                                                                                                                                                                                                                                                                                   | ['{"experience": "29"}']     | 27.07.2023  |
+| ['Хабаров Константин Витальевич']     |              | ['79034618176'] | [Row(type=3, serial='6110106742', country='RUS', date_issue='21.09.2012', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='6005322457', country='RUS', date_issue='28.05.2005', date_expire=None, authority='Первым отделом милиции УВД города Шахты Ростовской области', authority_code=None)]                        |                              | 27.07.2023  |
+| ['Усманов Олег Растямович']           |              | ['79103628870'] | [Row(type=3, serial='1409044186', country='RUS', date_issue='06.12.2012', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='1409044186', country='RUS', date_issue='11.08.2016', date_expire=None, authority='ТП в Ракитянском районе МО УФМС России по Белгородской области в городе Грайворон', authority_code=None)] | ['{"experience": "20 лет"}'] | 27.07.2023  |
+| ['Целуйко Константин Анатольевич']    |              | ['79288491500'] | [Row(type=3, serial='8225811450', country='RUS', date_issue='07.03.2017', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='0301484128', country='RUS', date_issue='15.01.2002', date_expire=None, authority='Каневским РОВД Краснодарского края', authority_code=None)]                                                |                              | 27.07.2023  |
+| ['Лузан Николай Николаевич']          |              | ['79107226503'] |                                                                                                                                                                                                                                                                                                                                                   | ['{"experience": "18"}']     | 27.07.2023  |
+| ['Семенов Федор Александрович']       |              | ['79123277152'] | [Row(type=3, serial='9908510214', country='RUS', date_issue='19.03.2019', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='7513280045', country='RUS', date_issue='19.07.2013', date_expire=None, authority='УФМС России по Чел. обл. в г. Копейске', authority_code=None)]                                            | ['{"experience": "10"}']     | 27.07.2023  |
+| ['Погосян Месроп Людвики']            |              | ['79802448680'] | [Row(type=3, serial='9910610256', country='RUS', date_issue='18.10.2019', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='2009072106', country='RUS', date_issue='27.02.2009', date_expire=None, authority='Отделением УФМС России по Воронежской области в Новоусманском районе', authority_code=None)]              |                              | 27.07.2023  |
+| ['Брынько Игорь Иванович']            |              | ['79038522397'] | [Row(type=3, serial='9903549569', country='RUS', date_issue='12.03.2019', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='2007920480', country='RUS', date_issue='16.01.2008', date_expire=None, authority='Отделением УФМС России по Воронежской области в Россошанском районе', authority_code=None)]               |                              | 27.07.2023  |
+| ['Басов Евгений Иванович']            |              | ['79060855091'] | [Row(type=3, serial='9909057409', country='RUS', date_issue='30.04.2019', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='6008052006', country='RUS', date_issue='19.09.2007', date_expire=None, authority='ОТДЕЛОМ УФМС РОССИИ ПО РОСТОВСКОЙ ОБЛАСТИ В ГОРОДЕ ШАХТЫ', authority_code=None)]                          |                              | 27.07.2023  |
+| ['Евстигнеев Александр Владимирович'] |              | ['79867607336'] | [Row(type=3, serial='9904949074', country='RUS', date_issue='22.12.2018', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='1714365870', country='RUS', date_issue='11.09.2014', date_expire=None, authority='ОУФМС России по Владимировской области в Гусь-Хрустальном районе', authority_code=None)]                  |                              | 27.07.2023  |
+| ['Мутагаров Айрат Анирович']          |              | ['79871125502'] | [Row(type=3, serial='9918599588', country='RUS', date_issue='02.03.2021', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='8014975593', country='RUS', date_issue='27.06.2014', date_expire=None, authority='Отделом УФМС России по Республике Башкортостан в г.Октябрьский', authority_code=None)]                    | ['{"experience": "10"}']     | 27.07.2023  |
+| ['Стрельников Дмитрий Александрович'] |              | ['79518691436'] | [Row(type=3, serial='9930298363', country='RUS', date_issue='08.07.2022', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='7514461870', country='RUS', date_issue='26.06.2014', date_expire=None, authority='ОТДЕЛЕНИЕМ УФМС РОССИИ ПО ЧЕЛЯБИНСКОЙ ОБЛАСТИ В ЧЕБАРКУЛЬСКОМ РАЙОНЕ', authority_code=None)]              |                              | 27.07.2023  |
+| ['Земцов Сергей Иванович']            |              |                 | [Row(type=3, serial='2322761495', country='RUS', date_issue='08.04.2015', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='0303278514', country='RUS', date_issue='02.08.2002', date_expire=None, authority='Тбилисским РОВД Краснодарского края 232-051', authority_code=None)]                                       | ['{"experience": "15"}']     | 27.07.2023  |
+| ['Цагов Михаил Владимирович']         |              | ['79103607251'] | [Row(type=3, serial='3102704153', country='RUS', date_issue='10.08.2011', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='1418768424', country='RUS', date_issue='24.04.2019', date_expire=None, authority='УМВД России по Белг.обл.  310-026', authority_code=None)]                                                 |                              | 27.07.2023  |
+| ['Нырненко Сергей Анатольевич']       |              | ['79885332739'] | [Row(type=3, serial='62587456', country='RUS', date_issue='27.10.2020', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='1965365874', country='RUS', date_issue='27.10.2020', date_expire=None, authority='ОУФМС России', authority_code=None)]                                                                        |                              | 27.07.2023  |
+| ['Раздобарин Александр Алексеевич']   |              | ['79103428103'] | [Row(type=3, serial='3607543185', country='RUS', date_issue='13.12.2011', date_expire=None, authority=None, authority_code=None), Row(type=0, serial='2019299635', country='RUS', date_issue='04.04.2019', date_expire=None, authority='ГУ МВД России по Воронежской области', authority_code=None)]                                              | ['{"experience": "10"}']     | 27.07.2023  |
+```

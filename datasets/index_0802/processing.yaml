@@ -1,0 +1,79 @@
+sourceId: "index_0802"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0802/raw/vipavenue-users.csv"
+    options:
+      inferSchema: false
+      replaceWithNone: "NULL"
+      sep: ","
+  entities:
+    persons:
+      columns:
+        first_name: "name"
+        last_name: "surname"
+        birth_date: "birthday"
+        sex: "gender"
+    address:
+      columns:
+        address: "user_city"
+    phones:
+      columns:
+        phone: "phone_number"
+    emails:
+        columns:
+          email: "email"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+        - "sex"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

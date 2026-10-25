@@ -1,0 +1,96 @@
+sourceId: "index_0729"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    forces:
+      columns:
+        rank: "metadata.military_rank"
+        position: "metadata.work_position"
+        metadata: "metadata.notes"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    address:
+      entities: "persons"
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              lit: "Нижегородская область село Мулино в/ч 30683"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            unit_code:
+              lit: "30683"
+            unit_name:
+              lit: "1 танковая армия 288 артиллерийская бригада"
+            position:
+              fn: "regexp_replace"
+              column: "position"
+              pattern:
+                lit: "(288 артиллерийской бригады \\(в/ч 30683 с\\. Мулино Нижегородской области\\) 1 танковой армии Западного ВО ВС РФ|\\(в/ч 30683 с\\. Мулино Нижегородской области\\) 1 танковой армии Западного ВО ВС РФ|288 артиллерийской (бригады )?1 танковой армии Западного ВО ВС РФ)$"
+            mos_code:
+              fn: "regexp_extract"
+              column: "metadata"
+              pattern:
+                lit: "ВУС по штату: (\\d+)\\."
+              index:
+                lit: 1
+          filter: true
+    raw_metadata:
+      entities: "forces"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "metadata.notes":
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "startswith"
+                    column: "metadata"
+                    value:
+                      lit: "На "
+                  value:
+                    fn: "regexp_extract"
+                    column: "metadata"
+                    pattern:
+                      lit: "(.*?)(?=\\. Военнослужащие)"
+                    index:
+                      lit: 1
+                otherwise:
+                  fn: "regexp_extract"
+                  column: "metadata"
+                  pattern:
+                    lit: "(Призван на воинскую службу \\d{2}\\.\\d{2}\\.\\d{4}) г"
+                  index:
+                    lit: 1
+          filter: true
+gold:
+  remain: [ "forces" ]

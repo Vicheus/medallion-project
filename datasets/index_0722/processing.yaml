@@ -1,0 +1,513 @@
+sourceId: "index_0722"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+      multiline: "true"
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+    socials:
+      columns:
+        facebook: "metadata.fb_url"
+        ok: "metadata.ok_url"
+        vk: "metadata.vk_url"
+    address:
+      columns:
+        address: "address"
+    raw_metadata:
+      columns:
+        place_of_fixation: "metadata.place_of_fixation"
+    common:
+      columns:
+        additional_info: "metadata.additional_info"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "emails_udf"
+                column:
+                  fn: "split"
+                  column:
+                    fn: "case"
+                    condition:
+                      fn: "ne"
+                      column: "email"
+                      value:
+                        lit: "email@email.com"
+                    value: "email"
+                  pattern:
+                    lit: "[,\\s]+"
+          filter: true
+    documents:
+      entities: "address"
+      columns:
+        documents:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "address"
+              value:
+                lit: "\\d{2}\\s\\d{2}\\s\\d{6}"
+            value:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рф"
+              serial:
+                fn: "regexp_extract"
+                column: "address"
+                pattern:
+                  lit: "(\\d{2}\\s\\d{2}\\s\\d{6})"
+                index:
+                  lit: 1
+              date_issue:
+                fn: "regexp_extract"
+                column: "address"
+                pattern:
+                  lit: "\\d{2}\\s\\d{2}\\s\\d{6}\\s(\\d{8})"
+                index:
+                  lit: 1
+              authority:
+                fn: "regexp_extract"
+                column: "address"
+                pattern:
+                  lit: "\\d{2}\\s\\d{2}\\s\\d{6}\\s\\d{8}\\s(.*)"
+                index:
+                  lit: 1
+              date_format:
+                lit: "%Y%m%d"
+          filter: true
+    socials:
+      entities:
+        - "socials"
+        - "common"
+      columns:
+        __socials:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column:
+                  fn: "concat_ws"
+                  columns:
+                    - "facebook"
+                    - "ok"
+                    - "vk"
+                    - fn: "case"
+                      condition:
+                        fn: "contains"
+                        column: "additional_info"
+                        value:
+                          lit: "https"
+                      value: "additional_info"
+                pattern:
+                  lit: "[,\\s]+"
+        socials:
+          source:
+            fn: "social_udf"
+            title:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "vk.com/"
+                  value:
+                    lit: "Vk"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "ok.ru/"
+                  value:
+                    lit: "Ok"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "www.facebook.com/"
+                  value:
+                    lit: "Facebook"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "instagram.com/"
+                  value:
+                    lit: "Instagram"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "odnoklassniki.ru/"
+                  value:
+                    lit: "Ok"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "www.mamba.ru/"
+                  value:
+                    lit: "Mamba"
+            link: "__socials"
+          filter: true
+    address:
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "\\d{2}\\s\\d{2}\\s\\d{6}"
+                      value:
+                        fn: "regexp_extract"
+                        column: "address"
+                        pattern:
+                          lit: "(0{6})?(.*?)(?=\\d{2}\\s\\d{2}\\s\\d{6})"
+                        index:
+                          lit: 2
+                    - condition:
+                        fn: "startswith"
+                        column: "address"
+                        value:
+                          lit: "209, Тула"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "^209, "
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "(Корп\\. \\-|\\-,|\\-$|Корп\\.\\s+Кв\\. 0|(Р\\-Н|Корп|Кв)(\\.)?\\s*0|, Обл,| П\\. Эт\\. Кв\\.$| К\\. ,| Эт\\. Кв\\.$|, ул\\.$)"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "(Корп\\.\\s\\-|\\-,|(Кв\\.\\s)?\\-$|Корп\\.\\s+Кв\\. 0|(Р\\-Н|Корп|Кв)(\\.)?\\s*0|, Обл,| П\\. Эт\\. Кв\\.$| К\\. ,| Эт\\. Кв\\.$|, ул\\.$)"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " П\\. Эт\\. Кв\\..+"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "П\\. Эт\\. "
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "/ | Улд\\. "
+                      value:
+                        fn: "regexp_replace"
+                        column:
+                          fn: "regexp_replace"
+                          column: "address"
+                          pattern:
+                            lit: " Улд\\. "
+                          replacement:
+                            lit: " ул. д. "
+                        pattern:
+                          lit: "/ "
+                        replacement:
+                          lit: " "
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: ", Кв\\. Кв\\."
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: ", Кв\\."
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " Кв\\.45, Н\\.новгород"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " Кв\\.45, Н\\.новгород"
+                        replacement:
+                          lit: " Кв.45; Н.новгород"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " Кв\\.2, Курск"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " Кв\\.2, Курск"
+                        replacement:
+                          lit: " Кв. 2; Курск"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "2/2, Кв\\. Рф, Балашиха, Балашиха,"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "2/2, Кв\\. Рф, Балашиха, Балашиха, "
+                        replacement:
+                          lit: "2/2; РФ, Балашиха, "
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " д\\. 84, Удмуртская"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " д\\. 84, Удмуртская"
+                        replacement:
+                          lit: " д. 84; Удмуртская"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " Дом 10, Гор\\. Челябинск"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " Дом 10, Гор\\. Челябинск"
+                        replacement:
+                          lit: " Дом 10; Гор. Челябинск"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " Кв\\. 47, П\\. Первомайское"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " Кв\\. 47, П\\. Первомайское"
+                        replacement:
+                          lit: " Кв. 47; П. Первомайское"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "Московская Область, Ногинск, Московская Область, Электросталь, Челябинская Область Челябинск"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "Московская Область, Ногинск, Московская Область, Электросталь, Челябинская Область Челябинск"
+                        replacement:
+                          lit: "Московская Область, Ногинск; Московская Область, Электросталь; Челябинская Область Челябинск"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: "Д\\.8К3 П\\. Эт\\.11"
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: "Д\\.8К3 П\\. Эт\\.11"
+                        replacement:
+                          lit: "Д. 8 Корп. 3 Эт. 11"
+                    - condition:
+                        fn: "rlike"
+                        column: "address"
+                        value:
+                          lit: " Д\\.89К2 "
+                      value:
+                        fn: "regexp_replace"
+                        column: "address"
+                        pattern:
+                          lit: " Д\\.89К2 "
+                        replacement:
+                          lit: " Д. 89 Корп. 2 "
+                  otherwise: "address"
+                pattern:
+                  lit: ";"
+        address:
+          source:
+            fn: "address_udf"
+            column: "__address"
+          filter: true
+    forces:
+      entities:
+        - "address"
+        - "common"
+      columns:
+        forces:
+          source:
+            fn: "when"
+            cases:
+              - condition:
+                  fn: "rlike"
+                  column: "address"
+                  value:
+                    lit: "(Вч/Корп|В/Ч|Вч)\\s\\d{5}"
+                value:
+                  fn: "force_udf"
+                  unit_code:
+                    fn: "regexp_extract"
+                    column: "address"
+                    pattern:
+                      lit: "(Вч/Корп|В/Ч|Вч)\\s(\\d{5})\\b"
+                    index:
+                      lit: 2
+              - condition:
+                  fn: "eq"
+                  column: "additional_info"
+                  value:
+                    lit: "76 Дивизия ВДВ"
+                value:
+                  fn: "force_udf"
+                  unit_name: "additional_info"
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+        - "socials"
+        - "common"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "metadata.place_of_fixation":
+                fn: "translate_map"
+                column: "place_of_fixation"
+                values:
+                  "Чернігів-Ріпки": "Чернигов-Репки"
+                  "Прилуки-Ніжин": "Прилуки-Нежин"
+                  "Городня": "Городня"
+                  "Семенівка": "Семеновка"
+                  "Чернігів-Ріпки Корюківка": "Чернигов-Репки Корюковка"
+                  "Корюківка": "Корюковка"
+                  "Чернігів-Ріпки Городня": "Чернигов-Репки Городня"
+                  "Новгород": "Новгород"
+                  "Чернігів-Ріпки Городня Корюківка": "Чернигов-Репки Городня Корюковка"
+                  "Корюківка Прилуки-Ніжин": "Корюковка Прилуки-Нежин"
+                  "Городня Корюківка": "Городня Корюковка"
+                  "Чернігів-Ріпки Корюківка Прилуки-Ніжин": "Чернигов-Репки Корюковка Прилуки-Нежин"
+                  "Новгород Корюківка": "Новгород Корюковка"
+                  "Семенівка Корюківка": "Семеновка Корюковка"
+                  "Чернігів-Ріпки Новгород": "Чернигов-Репки Новгород"
+                  "Чернігів-Ріпки Новгород Корюківка Прилуки-Ніжин": "Чернигов-Репки Новгород Корюковка Прилуки-Нежин"
+                  "Семенівка Городня": "Семеновка Городня"
+                  "Семенівка Корюківка Прилуки-Ніжин": "Семеновка Корюковка Прилуки-Нежин"
+                  "Чернігів-Ріпки Новгород Корюківка": "Чернигов-Репки Новгород Корюковка"
+                  "Чернігів-Ріпки Прилуки-Ніжин": "Чернигов-Репки Прилуки-Нежин"
+                  "Чернігів-Ріпки Семенівка": "Чернигов-Репки Семеновка"
+                  "Чернігів-Ріпки Семенівка Городня": "Чернигов-Репки Семеновка Городня"
+                  "Чернігів-Ріпки Семенівка Корюківка": "Чернигов-Репки Семеновка Корюковка"
+                  "Чернігів-Ріпки Семенівка Корюківка Прилуки-Ніжин": "Чернигов-Репки Семеновка Корюковка Прилуки-Нежин"
+                  "Новгород Корюківка Прилуки-Ніжин": "Новгород Корюковка Прилуки-Нежин"
+                  "Новгород Прилуки-Ніжин": "Новгород Прилуки-Нежин"
+                  "Семенівка Городня Корюківка": "Семеновка Городня Корюковка"
+                  "Семенівка Прилуки-Ніжин": "Семеновка Прилуки-Нежин"
+                  "Прилуки-Ніжиношиб": "Прилуки-Нежиношиб"
+                  "Семенівка Новгород Корюківка Прилуки-Ніжин": "Семеновка Новгород Корюковка Прилуки-Нежин"
+                  "Чернігів-Ріпки Новгород Прилуки-Ніжин": "Чернигов-Репки Новгород Прилуки-Нежин"
+                  "Чернігів-Ріпки Семенівка Новгород": "Чернигов-Репки Семеновка Новгород"
+              "metadata.fb_url":
+                fn: "case"
+                condition:
+                  fn: "eq"
+                  column: "facebook"
+                  value:
+                    lit: "Невідомо (зареєстрований за номером телефону)"
+                value:
+                  lit: "зарегистрирован по номеру телефона"
+              "metadata.ok_url":
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "ok"
+                  value:
+                    lit: "Павел Клишин|Антон Крысенко"
+                value:
+                  fn: "regexp_extract"
+                  column: "ok"
+                  pattern:
+                    lit: "(.*?)(?=https|$)"
+                  index:
+                    lit: 1
+              "metadata.additional_info":
+                fn: "when"
+                cases:
+                  - condition:
+                      fn: "rlike"
+                      column: "additional_info"
+                      value:
+                        lit: "(прапорщик|мурманск|транспорт|Воен\\.|Авто|@|Лунево)"
+                    value: "additional_info"
+                  - condition:
+                      fn: "eq"
+                      column: "additional_info"
+                      value:
+                        lit: "Служба: ВДВ (можливо)"
+                    value:
+                      lit: "возможно Служба ВДВ"
+                  - condition:
+                      fn: "eq"
+                      column: "additional_info"
+                      value:
+                        lit: "можливо поліцейський"
+                    value:
+                      lit: "возможно полицейский"
+          filter: true
+gold:
+  remain: [ "phones", "emails", "documents", "socials", "forces" ]

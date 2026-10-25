@@ -1,0 +1,81 @@
+sourceId: "index_0817"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0817/raw/лидер спорт.csv"
+    options:
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "День рождения"
+    phones:
+      columns:
+        phone: "Телефон"
+    emails:
+      columns:
+        email: "E-mail"
+    actuality:
+      columns:
+        reg_date: "Дата регистрации"
+    raw_metadata:
+        columns:
+          comment: "Примечание"
+          location: "Локация"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "reg_date"
+            date_format:
+              lit: "%d.%m.%Y %H:%M:%S"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                comment: "comment"
+                location: "location"
+            filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

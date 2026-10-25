@@ -1,0 +1,107 @@
+sourceId: "index_0669"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0669/raw/ndv_ru_448k_10_02_2023.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        firstname: "name"
+        lastname: "surname"
+        middlename: "patronymic"
+        birth_date: "birt_date"
+    address:
+      columns:
+        living_address: "address"
+        registered_address: "propiska"
+    phones:
+      columns:
+        phone: "phone_number"
+    emails:
+      columns:
+        email: "email"
+    documents:
+        columns:
+          serial_part_1: "passport_series"
+          serial_part_2: "passport_number"
+          authority: "passport_issued_by"
+          authority_code: "passport_code"
+          date_issue: "passport_date"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "lastname"
+              - "firstname"
+              - "middlename"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    address:
+      columns:
+        address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "address_udf"
+                    column: "living_address"
+                  - fn: "address_udf"
+                    column: "registered_address"
+          filter: true
+    documents:
+        columns:
+          documents:
+            source:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рф"
+              serial:
+                fn: "concat"
+                columns:
+                  - "serial_part_1"
+                  - "serial_part_2"
+              date_issue: "date_issue"
+              authority: "authority"
+              authority_code: "authority_code"
+              date_format:
+                lit: "%d.%m.%Y"
+            filter: true
+gold:
+  remain: [ "phones", "documents", "emails", "address" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

@@ -1,0 +1,678 @@
+sourceId: "index_0660"
+
+bronze:
+  read:
+    path: "mosgorzdrav.csv"
+    options:
+      sep: "|"
+    trimValues: true
+    replaceWithNone: [ "None", "NULL", "НЕТ", "Нет", "нет", "нет.", "нет данных", "Нет данных", "Unknown", "не указано", "неуказано", "не указан" ]
+    replaceRegexWithNone: [ "^\\s*$", "^\\-+$", "^0+$", "^\\.+$", "^\\*+$", "^\\,+$" ]
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        last_name: "Фамилия"
+        first_name: "Имя"
+        middle_name: "Отчество"
+        birth_date: "Дата рождения"
+        sex: "Пол"
+    phones:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phone_1: "Номер телефона"
+        phone_2: "Место работы/учебы: Номер телефона"
+    address:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        address_1_region: "Адрес проживания: Административный округ"
+        address_1_district: "Адрес проживания: Район"
+        address_1_address: "Адрес проживания"
+        address_1_flat: "Адрес проживания: Квартира"
+        address_2_region: "Адрес регистрации: Административный округ"
+        address_2_district: "Адрес регистрации: Район"
+        address_2_address: "Адрес регистрации: Адрес"
+        address_2_flat: "Адрес регистрации: Квартира"
+        address_3: "Место работы/учебы: Фактический адрес"
+    documents:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        insurance_policy_number: "Номер полиса ОМС"
+        temporary_doc_num: "Временное свидетельство"
+        snils: "СНИЛС"
+        doc_1_type: "Документ: Тип"
+        doc_1_serial: "Документ: Серия"
+        doc_1_number: "Документ: Номер"
+        doc_1_issue_date: "Документ: Дата выдачи"
+        doc_1_issued_by: "Документ: Кем выдан"
+    works:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        company: "Место работы/учебы: Наименование"
+        position: "Место работы/учебы: Должность/группа"
+        work_address: "Место работы/учебы: Фактический адрес"
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        medical_analysis_date: "Дата взятия образца"
+        medical_laboratory_analysis_date: "Дата отправки образца в лабораторию"
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        from: "Страна/регион прибытия"
+        arrival_date: "Дата прибытия"
+        medical_place_name: "Отделение"
+        medical_diagnosis: "Предварительный диагноз"
+        medical_mkb_10_code: "Код МКБ10"
+        medical_diagnosis_date: "Дата заболевания"
+        medical_comment: "Коментарий"
+        doctor_name_1: "ФИО врача"
+        doctor_name_2: "ФИО отбиравшего материал"
+        doctor_name_3: "ФИО принявшего материал"
+silver:
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "phones_udf"
+              column:
+                fn: "array"
+                columns:
+                  - "phone_1"
+                  - "phone_2"
+          filter: true
+    address:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "address_udf"
+                  column:
+                    fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "address_1_address"
+                        - fn: "gt"
+                          column:
+                            fn: "length"
+                            column: "address_1_address"
+                          value:
+                            lit: 1
+                        - fn: "not"
+                          column:
+                            fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "address_1_address"
+                            value:
+                              lit: "^(unknown|нет|\\-?а1|бомж|удалённо|самозанятый|гостиница|тот же|д\\.\\s*\\d+,?|\\-, \\-а1|студент|не учится|ип|не сообщает|не указан|не указано|не указано, не указано|не работает|отсутствует|не работает/не учится|не предоставлено|пациент отказывается сообщать|отказ|не раб|пенсионер|транзит|работает удалённо|не работает \\( слова пациента\\)|не посещает|пенсионерка|без паспорта|временно не работает|ао тинькофф банк|ооо тинькофф центр разработки|безработный|по прописке|работает)(\\s)?(-)?(\\s)*(\\d)*$"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - fn: "case"
+                          condition:
+                            fn: "isNotNull"
+                            column: "address_1_region"
+                          value: "address_1_region"
+                        - fn: "case"
+                          condition:
+                            fn: "and"
+                            columns:
+                              - fn: "isNotNull"
+                                column: "address_1_district"
+                              - fn: "not"
+                                column:
+                                  fn: "startswith"
+                                  column:
+                                    fn: "lower"
+                                    column: "address_1_district"
+                                  value:
+                                    fn: "lower"
+                                    column: "address_1_address"
+                          value: "address_1_district"
+                        - "address_1_address"
+                        - fn: "when"
+                          cases:
+                            condition:
+                              fn: "and"
+                              columns:
+                                - fn: "rlike"
+                                  column:
+                                    fn: "lower"
+                                    column: "address_1_flat"
+                                  value:
+                                    lit: "^\\d+$"
+                                - fn: "not"
+                                  column:
+                                    fn: "and"
+                                    columns:
+                                      - fn: "isNotNull"
+                                        column: "address_1_address"
+                                      - fn: "contains"
+                                        column: "address_1_address"
+                                        value: "address_1_flat"
+                                      - fn: "rlike"
+                                        column:
+                                          fn: "lower"
+                                          column: "address_1_address"
+                                        value:
+                                          lit: "\\b(кв|квартира)\\.?"
+                            value:
+                              fn: "concat_ws"
+                              columns:
+                                - lit: "квартира"
+                                - "address_1_flat"
+                          otherwise: "address_1_flat"
+                      sep:
+                        lit: " "
+                - fn: "address_udf"
+                  column:
+                    fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "address_2_address"
+                        - fn: "gt"
+                          column:
+                            fn: "length"
+                            column: "address_2_address"
+                          value:
+                            lit: 1
+                        - fn: "not"
+                          column:
+                            fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "address_2_address"
+                            value:
+                              lit: "^(unknown|нет|\\-?а1|бомж|удалённо|самозанятый|гостиница|тот же|д\\.\\s*\\d+,?|\\-, \\-а1|студент|не учится|ип|не сообщает|не указан|не указано|не указано, не указано|не работает|отсутствует|не работает/не учится|не предоставлено|пациент отказывается сообщать|отказ|не раб|пенсионер|транзит|работает удалённо|не работает \\( слова пациента\\)|не посещает|пенсионерка|без паспорта|временно не работает|ао тинькофф банк|ооо тинькофф центр разработки|безработный|по прописке|работает)(\\s)?(-)?(\\s)*(\\d)*$"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - fn: "case"
+                          condition:
+                            fn: "isNotNull"
+                            column: "address_2_region"
+                          value: "address_2_region"
+                        - fn: "case"
+                          condition:
+                            fn: "and"
+                            columns:
+                              - fn: "isNotNull"
+                                column: "address_2_district"
+                              - fn: "not"
+                                column:
+                                  fn: "startswith"
+                                  column:
+                                    fn: "lower"
+                                    column: "address_2_district"
+                                  value:
+                                    fn: "lower"
+                                    column: "address_2_address"
+                          value: "address_2_district"
+                        - "address_2_address"
+                        - fn: "when"
+                          cases:
+                            condition:
+                              fn: "and"
+                              columns:
+                                - fn: "rlike"
+                                  column:
+                                    fn: "lower"
+                                    column: "address_2_flat"
+                                  value:
+                                    lit: "^\\d+$"
+                                - fn: "not"
+                                  column:
+                                    fn: "and"
+                                    columns:
+                                      - fn: "isNotNull"
+                                        column: "address_2_address"
+                                      - fn: "contains"
+                                        column: "address_2_address"
+                                        value: "address_2_flat"
+                                      - fn: "rlike"
+                                        column:
+                                          fn: "lower"
+                                          column: "address_2_address"
+                                        value:
+                                          lit: "\\b(кв|квартира)\\.?"
+                            value:
+                              fn: "concat_ws"
+                              columns:
+                                - lit: "квартира"
+                                - "address_2_flat"
+                          otherwise: "address_2_flat"
+                      sep:
+                        lit: " "
+                - fn: "address_udf"
+                  column:
+                    fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "address_3"
+                        - fn: "gt"
+                          column:
+                            fn: "length"
+                            column: "address_3"
+                          value:
+                            lit: 1
+                        - fn: "not"
+                          column:
+                            fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "address_3"
+                            value:
+                              lit: "^(unknown|нет|\\-?а1|бомж|удалённо|самозанятый|гостиница|тот же|д\\.\\s*\\d+,?|\\-, \\-а1|студент|не учится|ип|не сообщает|не указан|не указано|не указано, не указано|не работает|отсутствует|не работает/не учится|не предоставлено|пациент отказывается сообщать|отказ|не раб|пенсионер|транзит|работает удалённо|не работает \\( слова пациента\\)|не посещает|пенсионерка|без паспорта|временно не работает|ао тинькофф банк|ооо тинькофф центр разработки|безработный|по прописке|работает)(\\s)?(-)?(\\s)*(\\d)*$"
+                    value: "address_3"
+        address:
+          source:
+            fn: "regexp_replace"
+            column:
+              fn: "regexp_replace"
+              column:
+                fn: "trim"
+                column: "__address"
+                symbols:
+                  lit: " -"
+              pattern:
+                lit: "^[Гг]?(\\s)?(\\.)?(\\s)?Москва(\\.)?(\\s)?[01]?$|^Москва г(\\.)?$"
+              replacement:
+                lit: "город Москва"
+            pattern:
+              lit: "(101000)?(\\s)?\\b[Гг](\\s)?(\\.)?(\\s)?Москва\\s"
+            replacement:
+              lit: "город Москва "
+          filter:
+            fn: "and"
+            columns:
+              - fn: "isNotNull"
+                column: "address"
+              - fn: "not"
+                column:
+                  fn: "isin"
+                  column:
+                    fn: "lower"
+                    column: "address"
+                  values:
+                    - lit: "не работает слова пациента для пересечения границы1"
+                    - lit: "удаленная работа1"
+                    - lit: "не работает 1"
+    works:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __post:
+          source:
+            fn: "lower"
+            column:
+              fn: "when"
+              cases:
+                - fn: "case"
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "position"
+                      - fn: "not"
+                        column:
+                          fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "position"
+                          value:
+                            lit: "^(не работает|не указан|пациент|не работает/не учится|отказ|не раб|неработающий|работает|неработает|неизвестно|безработный|безработная|не работа|не работает или не учится|не посещает|сотрудник|\\d+|но|н\\\\о|не сообщает)$"
+                  value: "position"
+                - fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column: "company"
+                  value:
+                    fn: "when"
+                    cases:
+                      fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "company"
+                        value:
+                          lit: "^(и ?п|не работает пенсионер|не работает пенсионерка|пенсионер|пенсионерка|пенсия|домохозяйка|пенс\\.?|школьник юз|студент|студентка|индивидуальный предприниматель)$"
+                      value: "company"
+        __company:
+          source:
+            fn: "case"
+            condition:
+              fn: "and"
+              columns:
+                - fn: "isNotNull"
+                  column: "company"
+                - fn: "not"
+                  column:
+                    fn: "or"
+                    columns:
+                      - fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "company"
+                        value:
+                          lit: "не работает"
+                      - fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "company"
+                        value:
+                          lit: "^(не указан|пациент|не сообщает|не сообщил|отказ|не учится|работает|работающий|неизвестно|работающая|не раб|ип|неработающий|неработает|и ?п|не ходит|не работающий|студент|студенты|студентка|школа|школьник|школьница|индивидуальный предприниматель|не работа|бл не нужен|безработный|безработная|дошкольник неорганизованный|неорганизованная|не требуется|неорганизованный|неорганизован|неорганиз\\.?|самозанятый|не посещает|нераб\\.?|не работает пенсионер|не работает пенсионерка|пенсионер не работает|пенсионер|пенсионерка|\\d+|не организован|неорг\\.?|пенсия|но|н\\\\о|н\\.о|домохозяйка|пенс\\.?|школьник юз|не работ|без места работы)$"
+            value: "company"
+        __company_address:
+          source:
+            fn: "address_udf"
+            column: "work_address"
+        works:
+          source:
+            fn: "work_udf"
+            post:
+              fn: "case"
+              condition:
+                fn: "isNotNull"
+                column: "__post"
+              value:
+                fn: "when"
+                cases:
+                  - condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "company"
+                      value:
+                        lit: "^(не работает пенсионер|не работает пенсионерка|пенсионер|пенсионерка|пенсия|пенс\\.?|пенсионер не работает)$"
+                    value:
+                      lit: "пенсионер"
+                otherwise: "__post"
+            company:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "__company"
+                  value:
+                    lit: "школа"
+                value:
+                  fn: "regexp_replace"
+                  column: "__company"
+                  pattern:
+                    lit: "школа|Школа|ШКОЛА"
+                  replacement:
+                    lit: " школа "
+              otherwise: "__company"
+            company_address:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "__company_address"
+                  - fn: "not"
+                    column:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "__company_address"
+                      value:
+                        lit: "^(на дому|в/ч|неизвестно|не работает|не сообщает|отказ|пенсионер|школа|и ?п)$"
+              value: "__company_address"
+          filter: true
+    documents:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "insurance_policy_number"
+                    value:
+                      lit: "\\d{10,18}"
+                  value:
+                    fn: "document_udf"
+                    type:
+                      lit: "номер страхового полиса"
+                    serial: "insurance_policy_number"
+                - fn: "document_udf"
+                  type:
+                    lit: "Временное удостоверение личн. гражд. РФ"
+                  serial: "temporary_doc_num"
+                - fn: "document_udf"
+                  type:
+                    lit: "снилс"
+                  serial: "snils"
+                - fn: "document_udf"
+                  type: "doc_1_type"
+                  serial:
+                    fn: "concat"
+                    columns:
+                      - "doc_1_serial"
+                      - "doc_1_number"
+                  date_issue: "doc_1_issue_date"
+                  authority:
+                    fn: "case"
+                    condition:
+                      fn: "not"
+                      column:
+                        fn: "rlike"
+                        column: "doc_1_issued_by"
+                        value:
+                          lit: "^\\d{3}(\\s)?(\\-?)(\\s)?\\d{3}$"
+                    value:
+                      fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "doc_1_issued_by"
+                          value:
+                            lit: "^(документов нет|неизвестно|нет данных|по|выдан|.|0+|1+|2+|3+|01|1234?|о+)$"
+                      value:
+                        fn: "trim"
+                        column:
+                          fn: "regexp_replace_all"
+                          column: "doc_1_issued_by"
+                          values:
+                            "\\s+": " "
+                            "^([Оо]тделением|[Оо]тделом|ОТДЕЛ|[Оо]тдел|ОТДЕЛЕНИЕМ) ": ""
+                            " ([Рр]/?п нет|РП НЕТ|Р/П ДАННЫХ НЕТ|Р/П НЕТ|[Рр]/?п данных нет|[Дд]окументов нет|ДОКУМЕНТОВ НЕТ)$": ""
+                            "^(ГУ МВД РОССИИ ПО [Гг]?(\\.)? ?МОСКВЕ|ГУ МВД РОССИИ ПО ГОР(\\.)? ?МОСКВЕ|ГУ МВД России по гор\\?. ?Москве|[Гг]у мвд по г\\.? ?москве|ГУ МВД РОССИИ ПО ГОРОДУ МОСКВЕ|ГУ МВД России по [Гг](\\.)? ?[Мм]оскв[ае]|[Гг]у мвд россии по [Гг](\\.)? ?[Мм]оскв[ае]|ГУ МВД по Москве|ГУ МВД России по городу Москв[ае]|ГУ МВД РФ по г\\.? ?Москв[ае]|ГУ МВД ПО Г\\.? ?МОСКВЕ|ГУ МВД России по гор Москв[ае]|гу мвд россии по гор москв[ае]|ГУ МВД России по Москв[ае]|гу мвд россии по москв[ае]|ГУ МВД РФ по Москв[ае]|ГУ МВД МОСКВЫ|ГУ МВД Москвы|[Гг]у мвд россии по гор\\.? ?москв[ае]|ГУ МВД России по гор\\.? ?Москв[ае]|ГУ МВД по Москв[ае]|ГУ МВД Москв[ае]|ГУ МВД по г\\.? ?Москв[ае]|[Гг]у мвд России по г\\.? ?Москв[ае]|гу мвд россии по городу москв[ае]||ГУ МВД России по г\\. ?Москв[ае]|ГУ МВД России по г\\.? ?Москв[ае]|ГУ МВД России по г\\.? ?Москв[ае]|гу мвд россии по гор\\. москв[ае]|ГУ МВД РОССИИ ПО Г\\.? ?Москв[ае])$": "ГУ МВД России по г. Москве"
+                            "^(ГУ МВД РОССИИ ПО МОСКОВСКОЙ ОБЛАСТИ|ГУ МВД РОССИИ ПО МОСКОВСКОЙ ОБЛ\\.?|[Гг]у мвд россии по московской области|ГУ МВД России по Московской обл\\.?|ГУ МВД России по московской области|[Гг]у мвд россии по московской обл|ГУ МВД ПО МОСКОВСКОЙ ОБЛАСТИ|[Гг]у мвд россии по мо|[Гг]у мвд россии по моск обл|ГУ МВД РОССИИ ПО МОСКОВСКОЙ ОБЛ|ГУ МВД РОССИИ ПО МО|ГУ МВД России по МО)$": "ГУ МВД России по Московской области"
+                            "^[Оо]вд$": "ОВД"
+                            "^РОВД Митино г\\. ?Москвы$": "РОВД Митино г. Москвы"
+                            "^(ОТДЕЛЕНИЕМ )?УФМС РОССИИ ПО ГОР. МОСКВЕ ПО РАЙОНУ ЩУКИНО$": "УФМС России по гор. Москве по району Щукино"
+                            "^([Мм]осковская обл|МОСКОВСКАЯ ОБЛ )$": "Московская область"
+                            "^(ОУФМС РФ по Москве|ОУФМС России по Москве|ОУФМС России по г\\.? ?Москве)$": "ОУФМС России по г. Москве"
+                            "^([Оо]вд москва|ОВД МОСКВА|ОВД Г\\.? ?МОСКВЫ|[Оо]вд г\\.? ?[Мм]осквы|ОВД Москва|ОВД г\\.? ?Москвы|ОВД МОСКВЫ)$": "ОВД Москвы"
+                            "^(загс москвы|Загс Москвы|ЗАГС МОСКВЫ|ЗАГС г\\.? ?Москвы)$": "ЗАГС Москвы"
+                            "^[Мм]вд$": "МВД"
+                            "^[Гг]у мвд$": "ГУ МВД"
+                            "^[Гг]у$": "ГУ"
+                            "^(ГУ МВД РОССИИ|[Гг]у мвд россии)$": "ГУ МВД России"
+                            "^([Уу]фмс россии|УФМС РОССИИ|УФМС РФ)$": "УФМС России"
+                            "^([Уу]фмс|[Оо]тделом уфмс|[Оо]тделением УФМС)$": "УФМС"
+                            "^[Уу]вд$": "УВД"
+                            "^[Фф]мс$": "ФМС"
+                            "^[Мм]ск$": "МСК"
+                            "^[Оо]уфмс$": "ОУФМС"
+                            "^[Мм]фц$": "МФЦ"
+                            "^[Рр]овд$": "РОВД"
+                            "^[Зз]агс$": "ЗАГС"
+                            "^[Оо]тд$": "ОТД"
+                            "^(москва|МОСКВА|Г\\.? ?МОСКВА|г(\\.)? ?[Мм]осква|ГОР МОСКВА|МОСКВА, РОССИЯ)$": "Москва"
+                            "^(РОССИЯ|россия|россии|РОССИИ|рф|РФ)$": "Россия"
+                            "^[Мм]о$": "МО"
+                            "^[Пп]с$": "ПС"
+                            "^(MINISTRY OF INTERNAL AFFAIRS|ministry of internal affairs|МИНИСТЕРСТВО ВНУТРЕННИХ ДЕЛ|[Мм]инистерство внутренних дел)$": "МВД"
+                        symbols:
+                          lit: " -/,"
+                  authority_code:
+                    fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "doc_1_issued_by"
+                      value:
+                        lit: "^\\d{3}(\\s)?(\\-?)(\\s)?\\d{3}$"
+                    value: "doc_1_issued_by"
+                  date_format:
+                    lit: "%Y-%m-%d"
+          filter: true
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "medical_analysis_date"
+              - "medical_laboratory_analysis_date"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Страна/регион прибытия: "from"
+              Дата прибытия: "arrival_date"
+              Отделение: "medical_place_name"
+              Предварительный диагноз: "medical_diagnosis"
+              Код МКБ10: "medical_mkb_10_code"
+              Дата заболевания: "medical_diagnosis_date"
+              Коментарий: "medical_comment"
+              ФИО врача:
+                fn: "name_udf"
+                column: "doctor_name_1"
+              ФИО отбиравшего материал:
+                fn: "name_udf"
+                column: "doctor_name_2"
+              ФИО принявшего материал:
+                fn: "name_udf"
+                column: "doctor_name_3"
+          filter: true
+gold:
+  transformations:
+    - op: "groupBy"
+      columns:
+        - "sex"
+        - "birth_date"
+        - "names"
+        - "phones"
+        - "documents"
+        - "address"
+        - "works"
+      positive:
+        fn: "or"
+        columns:
+          - fn: "isNotNull"
+            column: "phones"
+          - fn: "isNotNull"
+            column: "documents"
+          - fn: "isNotNull"
+            column: "address"
+          - fn: "isNotNull"
+            column: "works"
+    - op: "withColumn"
+      column: "raw_metadata"
+      function:
+        fn: "slice"
+        column: "raw_metadata"
+        len:
+          lit: 10
+  io:
+    write:
+      type: "coalesce_size"
+      count: 1024
+  remain: [ "phones", "documents" ]

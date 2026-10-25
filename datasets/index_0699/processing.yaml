@@ -1,0 +1,88 @@
+sourceId: "index_0699"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0699/raw/ogo1.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        first_name: "first_name"
+        last_name: "last_name"
+        birth_date: "birthday"
+        sex: "gender"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+    ips:
+      columns:
+        ip: "ip"
+    devices:
+      columns:
+        user_agent: "user_agent"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    ips:
+      columns:
+        ips:
+          source:
+            fn: "ip_udf"
+            ip: "ip"
+          filter: true
+    devices:
+      columns:
+        devices:
+          source:
+            fn: "struct"
+            values:
+              title: 
+                lit: "Оформление заказа"
+              user_agent: "user_agent"
+          filter: true
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

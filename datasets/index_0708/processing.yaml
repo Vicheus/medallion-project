@@ -1,0 +1,133 @@
+sourceId: "index_0708"
+
+bronze:
+  read:
+    path: "штатка от 22.07 .2024.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+    replaceRegexWithNone: "^\\s*$"
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    forces:
+      columns:
+        tag_number: "л/н"
+        rank: "В/звание"
+        unit_code: "в/ч"
+        unit_name_part_1: "Армия"
+        unit_name_part_2: "полк"
+        callsign: "Шифр"
+    raw_metadata:
+      columns:
+        arrival_date: "Дата прибытия"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d/%m/%Y"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank: "rank"
+            unit_code:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "isin"
+                  column: "unit_code"
+                  values:
+                    - lit: "277 резерн"
+                    - lit: "6 ОКБ"
+                    - lit: "68 МСП"
+              value: "unit_code"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "isin"
+                    column: "unit_code"
+                    values:
+                      - lit: "277 резерн"
+                      - lit: "6 ОКБ"
+                      - lit: "68 МСП"
+                  value: "unit_code"
+                - "unit_name_part_1"
+                - fn: "when"
+                  cases:
+                    - condition:
+                        fn: "endswith"
+                        column: "unit_name_part_2"
+                        value: "unit_name_part_1"
+                      value:
+                        fn: "regexp_replace"
+                        column: "unit_name_part_2"
+                        pattern:
+                          fn: "concat"
+                          columns:
+                            - "unit_name_part_1"
+                            - lit: "$"
+                    - condition:
+                        fn: "endswith"
+                        column: "unit_name_part_2"
+                        value:
+                          fn: "regexp_replace"
+                          column: "unit_name_part_1"
+                          pattern:
+                            lit: " "
+                      value:
+                        fn: "regexp_replace"
+                        column: "unit_name_part_2"
+                        pattern:
+                          fn: "concat"
+                          columns:
+                            - fn: "regexp_replace"
+                              column: "unit_name_part_1"
+                              pattern:
+                                lit: " "
+                            - lit: "$"
+                  otherwise: "unit_name_part_2"
+            callsign:
+              fn: "initcap"
+              column: "callsign"
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+        - "forces"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "л/н":
+                fn: "case"
+                condition:
+                  fn: "isin"
+                  column: "tag_number"
+                  values:
+                    - lit: "ВУК-926515"
+                    - lit: "МТ-291"
+                value: "tag_number"
+              "Дата прибытия": "arrival_date"
+          filter: true
+gold:
+  remain: [ "forces" ]

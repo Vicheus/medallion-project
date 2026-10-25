@@ -1,0 +1,49 @@
+[project]
+name = "parsetron"
+version = "0.0.1"
+requires-python = ">=3.12"
+
+dependencies = [
+    "airportsdata>=20241001",
+    "cachetools>=5.5.0",
+    "chardet>=5.2.0",
+    "environs>=14.3.0",
+    "Jinja2>=3.1.2",
+    "jsonschema>=4.25.1",
+    "minio>=7.2.15",
+    "natasha>=1.6.0",
+    "pandas>=2.3.3",
+    "phonenumbers>=9.0.32",
+    "pullenti_wrapper>=0.9.0",
+    "pyspark>=4.0.3",
+    "pytest>=8.3.3",
+    "pyarrow>=11.0.0",
+    "python-dotenv>=1.1.1",
+    "Requests>=2.32.5",
+    "scikit_learn>=1.7.2",
+    "setuptools>=68.1.2,<81",
+    "splink>=4.0.9",
+    "transliterate>=1.10.2",
+    "tabulate>=0.9.0",
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+postal = [
+    "aiohttp>=3.14.3",
+    "postal>=1.1.11",
+]
+
+[dependency-groups]
+dev = [
+    { include-group = "lint" },
+    "pre-commit>=3.6.0",
+]
+lint = [
+    "black>=25.9.0",
+    "ruff>=0.4.4"
+]
+
+[tool.uv]
+default-groups = []

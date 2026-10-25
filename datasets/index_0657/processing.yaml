@@ -1,0 +1,107 @@
+sourceId: "index_0657"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/index_0657/raw/urent_ru_2025.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "Имя"
+    address:
+      columns:
+        city: "Город"
+    phones:
+      columns:
+        phone: "Телефон"
+    financials:
+      columns:
+        bank_card_number: "Карта"
+        bank_card_valid_till: "Срок действия"
+        bank_card_emitent: "Эмитент"
+    ips:
+      columns:
+        ip_address: "IP"
+        ip_date: "Дата/время создания"
+    raw_metadata:
+      columns:
+        RRN: "RRN"
+    actuality:
+      columns:
+        date_and_time: "Дата и время"
+        create_datetime: "Дата/время создания"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "city"
+    financials:
+      columns:
+        financials:
+          source:
+            fn: "struct"
+            values:
+              title: "bank_card_emitent"
+              card_number: "bank_card_number"
+              date_expire: 
+                fn: "financial_date_expire_udf"
+                column: "bank_card_valid_till"
+                date_format:
+                  lit: "%d.%m.%Y"
+          filter: true
+    ips:
+      columns:
+        ips:
+          source:
+            fn: "ip_udf"
+            ip: "ip_address"
+            date: "ip_date"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                RRN: "RRN"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "date_and_time"
+              - "create_datetime"
+            date_format:
+              lit: "%d.%m.%Y %H:%M"
+          filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

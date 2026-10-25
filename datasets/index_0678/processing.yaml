@@ -1,0 +1,1370 @@
+sourceId: "index_0678"
+
+bronze:
+  - id: "executives"
+    read:
+      path: "company_executives.csv"
+      trimValues: true
+      replaceRegexPatrial:
+        "data.recordDate": "T00:00:00\\.000Z$"
+        "data.pii.birthday": "T00:00:00\\.000Z$"
+      append:
+        - read:
+            path: "companies.csv"
+            trimValues: true
+            replaceRegexPatrial:
+              "raw_data.regDate": "T00:00:00\\.000Z$"
+            aliases:
+              id: "company_id"
+          ids: [ "company_id" ]
+          type: "left"
+        - read:
+            path: "company_founders.csv"
+            trimValues: true
+          ids: [ "person_id", "full_name" ]
+          type: "left"
+    entities:
+      persons:
+        columns:
+          name: "full_name"
+          birth_date: "data.pii.birthday"
+      emails:
+        columns:
+          email: "data.pii.email"
+      phones:
+        columns:
+          phone: "data.pii.phones"
+      documents:
+        columns:
+          passport_serial: "data.pii.passportNumbers"
+          inn_serial: "data.person.innPerson"
+          snils_serial: "data.pii.snils"
+      works:
+        columns:
+          post: "role_title"
+          post_en: "data.mappedPosition.englishTitle"
+          company_name: "raw_data.nameFull"
+          company_short_name: "raw_data.nameShort"
+          address: "raw_data.address.rawAddress"
+          categories: "raw_data.category.categories"
+          subcategories: "raw_data.category.subcategories"
+          inn: "raw_data.inn"
+          ogrn: "raw_data.ogrn"
+          primary_okved_code: "raw_data.primaryOkved.okvedCode.code"
+          primary_okved_name: "raw_data.primaryOkved.okvedCode.name"
+      address:
+        columns:
+          address: "data.pii.addresses"
+      raw_metadata:
+        columns:
+          share_percent: "share_percent"
+          share_nominal: "share_nominal"
+          company_latitude: "raw_data.address.latitude"
+          company_longitude: "raw_data.address.longitude"
+          company_reg_date: "raw_data.regDate"
+          company_region_code: "raw_data.regionCode"
+      actuality:
+        columns:
+          record_date: "data.recordDate"
+  - id: "employees"
+    read:
+      path: "employees.csv"
+      trimValues: true
+      replaceRegexPatrial:
+        "data.dateFrom": "T00:00:00\\.000Z$"
+        "data.dateTo": "T00:00:00\\.000Z$"
+        "data.birthday": "T00:00:00\\.000Z$"
+      aliases:
+        "data.personId": "person_id"
+      append:
+        read:
+          path: "companies.csv"
+          trimValues: true
+          replaceRegexPatrial:
+            "raw_data.regDate": "T00:00:00\\.000Z$"
+          aliases:
+            id: "company_id"
+        ids: [ "company_id" ]
+        type: "left"
+    entities:
+      persons:
+        columns:
+          name: "data.name"
+          birth_date: "data.birthday"
+          birth_place: "data.birthplaces"
+      emails:
+        columns:
+          emails: "data.email"
+      phones:
+        columns:
+          phones: "data.phones"
+      documents:
+        columns:
+          passport_serial: "data.passportNumbers"
+          inn_serial: "data.inn"
+          patronymic_inn: "data.patronymic"
+          snils_serial: "data.snils"
+          driver_license: "data.driverLicense"
+      works:
+        columns:
+          post: "data.occupations"
+          company_name: "raw_data.nameFull"
+          company_short_name: "raw_data.nameShort"
+          address: "raw_data.address.rawAddress"
+          categories: "raw_data.category.categories"
+          subcategories: "raw_data.category.subcategories"
+          inn: "raw_data.inn"
+          ogrn: "raw_data.ogrn"
+          date_start: "data.dateFrom"
+          date_end: "data.dateTo"
+          primary_okved_code: "raw_data.primaryOkved.okvedCode.code"
+          primary_okved_name: "raw_data.primaryOkved.okvedCode.name"
+      vehicles:
+        columns:
+          numbers: "data.carPlate"
+      address:
+        columns:
+          address: "data.addresses"
+      raw_metadata:
+        columns:
+          company_latitude: "raw_data.address.latitude"
+          company_longitude: "raw_data.address.longitude"
+          company_reg_date: "raw_data.regDate"
+          company_region_code: "raw_data.regionCode"
+silver:
+  - id: "executives"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "phone_udf"
+              column: "phone"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "email_udf"
+              column: "email"
+            filter: true
+      documents:
+        columns:
+          documents:
+            source:
+              fn: "explode"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "document_udf"
+                    type:
+                      lit: "паспорт гражданина рф"
+                    serial: "passport_serial"
+                  - fn: "document_udf"
+                    type:
+                      lit: "инн"
+                    serial: "inn_serial"
+                  - fn: "document_udf"
+                    type:
+                      lit: "снилс"
+                    serial: "snils_serial"
+            filter: true
+      address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column: "address"
+            filter: true
+      works:
+        columns:
+          __categories:
+            source:
+              fn: "regexp_replace_all"
+              column:
+                fn: "trim"
+                column: "categories"
+                symbols:
+                  lit: " []"
+              values:
+                "^Виробництво ключових компонентів$": "Производство ключевых компонентов"
+                "^Ремонт, Модернізація та Обслуговування$": "Ремонт, модернизация и обслуживание"
+                "^Інженерне та Інфраструктурне Забезпечення$": "Инженерное и инфраструктурное обеспечение"
+                "^Радіоелектроніка та РЕБ$": "Радиоэлектроника и РЭБ"
+                "^Авіаційна промисловість$": "Авиационная промышленность"
+                "^Військове Тилове Забезпечення$": "Военное тыловое обеспечение"
+                "^Бронетанкова та Автомобільна Техніка$": "Бронетанковая и автомобильная техника"
+                "^Військове кораблебудування$": "Военное кораблестроение"
+                "^Інформаційні та Кібернетичні Системи \\(C4ISR\\)$": "Информационные и кибернетические системы (C4ISR)"
+                "^Дослідження та розробка \\(R&D\\)$": "Исследования и разработки (R&D)"
+                "^Безпілотні Комплекси \\(БПЛА/UGV\\)$": "Беспилотные комплексы (БПЛА/UGV)"
+                "^Боєприпаси та Вибухові Речовини$": "Боеприпасы и взрывчатые вещества"
+                "^Ракетно-Артилерійські Системи$": "Ракетно-артиллерийские системы"
+                "^РЖД і залізничне машинобудування$": "РЖД и железнодорожное машиностроение"
+                "^Хімічний та Біологічний Захист \\(РХБЗ\\)$": "Химическая и биологическая защита (РХБЗ)"
+                "^Стрілецька Зброя та Спорядження$": "Стрелковое оружие и снаряжение"
+          __subcategories:
+            source:
+              fn: "regexp_replace_all_udf"
+              column: "subcategories"
+              values:
+                "\\bFPV-дрони\\b": "FPV-дроны"
+                "\\bназемні станції\\b": "наземные станции"
+                "\\bЄмності\\b": "Емкости"
+                "\\bІнженерна техніка\\b": "Инженерная техника"
+                "\\bІнженерна\\b": "Инженерная"
+                "\\bІнше\\b": "Другое"
+                "\\bІнші тканини\\b": "Другие ткани"
+                "\\bІнші\\b": "Другие"
+                "\\bАвтомати\\b": "Автоматы"
+                "\\bАвтопілоти\\b": "Автопилоты"
+                "\\bАвіаційна радіолокація\\b": "Авиационная радиолокация"
+                "\\bАвіаційна\\b": "Авиационная"
+                "\\bАвіаційне,? шасі\\b": "Авиационное шасси"
+                "\\bАвіаційне\\b": "Авиационное"
+                "\\бАвіаційні,? двигуни\\b": "Авиационные двигатели"
+                "\\bАвіаційні\\b": "Авиационные"
+                "\\bАвіоніка\\b": "Авионика"
+                "\\bАналітичні системи\\b": "Аналитические системы"
+                "\\bАналітичні\\b": "Аналитические"
+                "\\bАнтени\\b": "Антенны"
+                "\\bАртилерійські снаряди\\b": "Артиллерийские снаряды"
+                "\\bАртилерійські\\b": "Артиллерийские"
+                "\\bБПЛА крила\\b": "БПЛА крылья"
+                "\\bБалістичний захист\\b": "Баллистическая защита"
+                "\\bБалістичний\\b": "Баллистическая"
+                "\\bБалістичні тканини\\b": "Баллистические ткани"
+                "\\bБалістичні\\b": "Баллистические"
+                "\\bБашти та модулі\\b": "Башни и модули"
+                "\\bБойові кораблі\\b": "Боевые корабли"
+                "\\bБойові машини піхоти\\b": "Боевые машины пехоты"
+                "\\bБортові системи\\b": "Бортовые системы"
+                "\\bБортові\\b": "Бортовые"
+                "\\bБронеавтомобілі\\b": "Бронеавтомобили"
+                "\\bБронежилети\\b": "Бронежилеты"
+                "\\bБронезахист\\b": "Бронезащита"
+                "\\bБронетранспортери\\b": "Бронетранспортеры"
+                "\\bБудівництво\\b": "Строительство"
+                "\\bБуксирована артилерія\\b": "Буксируемая артиллерия"
+                "\\bВерстати та обладнання\\b": "Станки и оборудование"
+                "\\bВерстати\\b": "Станки"
+                "\\bВибухові,? речовини\\b": "Взрывчатые вещества"
+                "\\bВинищувачі\\b": "Истребители"
+                "\\bВиробництво,? пороху\\b": "Производство пороха"
+                "\\bВисокоточні,? боєприпаси\\b": "Высокоточные боеприпасы"
+                "\\bВодні дрони\\b": "Водные дроны"
+                "\\bВійськова оптика\\b": "Военная оптика"
+                "\\bВійськова форма\\b": "Военная форма"
+                "\\bВійськова\\b": "Военная"
+                "\\bВійськове ПЗ\\b": "Военное ПО"
+                "\\bВійськове програмне забезпечення\\b": "Военное программное обеспечение"
+                "\\bВійськове\\b": "Военное"
+                "\\bВійськовий зв'язок\\b": "Военная связь"
+                "\\bВійськовий\\b": "Военная"
+                "\\bВійськові,? вертольоти\\b": "Военные вертулеты"
+                "\\bВійськові\\b": "Военные"
+                "\\bГенератори та енергетичні системи\\b": "Генераторы и энергетические системы"
+                "\\bГенератори\\b": "Генераторы"
+                "\\bГеоінформаційні системи\\b": "Геоинформационные системы"
+                "\\bГранатомети\\b": "Гранатометы"
+                "\\bГусеничне шасі\\b": "Гусеничное шасси"
+                "\\bГусеничне\\b": "Гусеничное"
+                "\\bГідравлічні агрегати\\b": "Гидравлические агрегаты"
+                "\\bГідравлічні\\b": "Гидравлические"
+                "\\bГідроакустика\\b": "Гидроакустика"
+                "\\bГільзи\\b": "Гильзы"
+                "\\bДатчики,? та,? сенсори\\b": "Датчики и сенсоры"
+                "\\bДетонатори та запали\\b": "Детонаторы и запалы"
+                "\\bДетонатори\\b": "Детонаторы"
+                "\\bДруковані,? плати\\b": "Печатные платы"
+                "\\bДруковані\\b": "Печатные"
+                "\\bЕлектродвигуни\\b": "Электродвигатели"
+                "\\bЕлектромеханіка\\b": "Электромеханика"
+                "\\bЕлементи живлення\\b": "Элементы питания"
+                "\\bЕлементи\\b": "Элементы"
+                "\\bЗалізнична\\b": "Железнодорожная"
+                "\\bЗапасні,? частини\\b": "Запасные части"
+                "\\bЗапасні\\b": "Запасные"
+                "\\bЗапчастини\\b": "Запчасти"
+                "\\bЗасоби РХБЗ\\b": "Средства РХБЗ"
+                "\\bЗасоби\\b": "Средства"
+                "\\bЗахисні костюми\\b": "Защитные костюмы"
+                "\\bЗахисні\\b": "Защитные"
+                "\\bЗберігання\\b": "Хранение"
+                "\\bЗброя\\b": "Оружие"
+                "\\bЗенітно-ракетні\\b": "Зенитно-ракетные"
+                "\\bЗенітно-ракетні комплекси\\b": "Зенитно-ракетные комплексы"
+                "\\bКабельно-провідникова\\b": "Кабельно-проводная"
+                "\\bКабельно-провідникова продукція\\b": "Кабельно-проводная продукция"
+                "\\bКапсулі\\b": "Капсули"
+                "\\bКаски та шоломи\\b": "Каски и шлемы"
+                "\\bКатапультні крісла\\b": "Катапультные кресла"
+                "\\bКолісне,? шасі\\b": "Колесное шасси"
+                "\\bКолісне\\b": "Колесное"
+                "\\bКомплекси РЕР\\b": "Комплексы РЭР"
+                "\\bКомпоненти,? боєприпасів\\b": "Компоненты боеприпасов"
+                "\\bКомпоненти\\b": "Компоненты"
+                "\\bКомунікаційні мережі\\b": "Коммуникационные сети"
+                "\\bКомунікаційні\\b": "Коммуникационные"
+                "\\bКорабельна радіолокація\\b": "Корабельная радиолокация"
+                "\\bКорабельна\\b": "Корабельная"
+                "\\bКорабельні,? двигуни\\b": "Корабельные двигатели"
+                "\\bКорисне навантаження\\b": "Полезная нагрузка"
+                "\\bКорпуси\\b": "Корпуса"
+                "\\bКосмічна,? сфера\\b": "Космическая сфера"
+                "\\bКосмічна\\b": "Космическая"
+                "\\bКрила та хвостове оперення\\b": "Крылья и хвостовое оперение"
+                "\\bКрила і хвостове оперення\\b": "Крылья и хвостовое оперение"
+                "\\bКрилаті\\b": "Крылатые"
+                "\\bКулемети\\b": "Пулеметы"
+                "\\bЛогістика\\b": "Логистика"
+                "\\bЛьотне спорядження\\b": "Лётное снаряжение"
+                "\\bЛіки та інші препарати\\b": "Лекарства и другие препараты"
+                "\\bМагніти\\b": "Магниты"
+                "\\bМашини для розмінування\\b": "Машины для разминирования"
+                "\\bМашини\\b": "Машины"
+                "\\bМедичний захист\\b": "Медицинская защита"
+                "\\bМедичний\\b": "Медицинский"
+                "\\bМедичні набори\\b": "Медицинские наборы"
+                "\\bМедичні послуги\\b": "Медицинские услуги"
+                "\\бМоделювання та аналіз\\b": "Моделирование и анализ"
+                "\\bМоделювання\\b": "Моделирование"
+                "\\bМодернізація систем\\b": "Модернизация систем"
+                "\\bМодернізація\\b": "Модернизация"
+                "\\bМорська\\b": "Морская"
+                "\\bМорське озброєння\\b": "Морское вооружение"
+                "\\bМорське\\b": "Морское"
+                "\\bМостобудування\\b": "Мостостроение"
+                "\\bМультикоптерні\\b": "Мультикоптерные"
+                "\\bМікроелектроніка\\b": "Микроэлектроника"
+                "\\bМікроэлектроніка\\b": "Микроэлектроника"
+                "\\bМіномети\\b": "Минометы"
+                "\\bМінометні міни\\b": "Минометные мины"
+                "\\bНавігаційне обладнання\\b": "Навигационное оборудование"
+                "\\bНавігаційне\\b": "Навигационное"
+                "\\bНадбудови\\b": "Надстройки"
+                "\\bНаземне,? забезпечення\\b": "Наземное обеспечение"
+                "\\bНаземне\\b": "Наземное"
+                "\\bНаземні дрони\\b": "Наземные дроны"
+                "\\bНаземні радари\\b": "Наземные радары"
+                "\\bНаземні\\b": "Наземные"
+                "\\bНамети та укриття\\b": "Палатки и укрытия"
+                "\\bНічне бачення\\b": "Ночное видение"
+                "\\bНічне\\b": "Ночное"
+                "\\bОбладнання\\b": "Оборудование"
+                "\\bОбробка\\b": "Обработка"
+                "\\bОбчислювальна техніка\\b": "Вычислительная техника"
+                "\\bОбчислювальна\\b": "Вычислительная"
+                "\\bОпалювальне/Охолодження\\b": "Отопительное/Охлаждение"
+                "\\bОпалювальне/Охолодження обладнання\\b": "Отопительное/Охлаждающее оборудование"
+                "\\bОптичні прилади\\b": "Оптические приборы"
+                "\\bОптичні\\b": "Оптические"
+                "\\bОсвітлення\\b": "Освещение"
+                "\\bОсвітні\\b": "Осветительные"
+                "\\bОчищення води\\b": "Очистка воды"
+                "\\bОчищення\\b": "Очистка"
+                "\\bОперативно-тактичні\\b": "Оперативно-тактические"
+                "\\bППО\\b": "ПВО"
+                "\\bПаливно-мастильні\\b": "Горюче-смазочные"
+                "\\bПаливно-мастильні матеріали\\b": "Горюче-смазочные материалы"
+                "\\bПатрони\\b": "Патроны"
+                "\\bПереробка\\b": "Переработка"
+                "\\bПланери\\b": "Планеры"
+                "\\bПольові кухні\\b": "Полевые кухни"
+                "\\bПоставка,? будівельних,? матеріалів\\b": "Поставка строительных материалов"
+                "\\bПоставка,? іншої,? продукції\\b": "Поставка другой продукции"
+                "\\bПостачання будівельних матеріалів\\b": "Поставка строительных материалов"
+                "\\bПрекурсори\\b": "Прекурсоры"
+                "\\bПриціли\\b": "Прицелы"
+                "\\bПроектування\\b": "Проектирование"
+                "\\bПротезування\\b": "Протезирование"
+                "\\bПротигази та фільтри\\b": "Протигазы и фильтры"
+                "\\bПротигази\\b": "Протигазы"
+                "\\bПротимінний захист\\b": "Противоминная защита"
+                "\\bПротипожежний захист\\b": "Протипожарная защита"
+                "\\bПрототипування Тестування зразків\\b": "Прототипирование Тестирование образцов"
+                "\\bПрототипування Тестування зразківр\\b": "Прототипирование Тестирование образцов"
+                "\\bПрототипування\\b": "Прототипирование"
+                "\\bПускові установки\\b": "Пусковые установки"
+                "\\bПускові\\b": "Пусковые"
+                "\\bПідводні човни\\b": "Подводные лодки"
+                "\\bРЕБ\\b": "РЭБ"
+                "\\bРСЗВ\\b": "РСЗО"
+                "\\bРадіоелектронні\\b": "Радиоэлектронные"
+                "\\bРадіоелектроніка\\b": "Радиоэлектроника"
+                "\\bРадіолокаційні станції\\b": "Радиолокационные станции"
+                "\\bРадіолокаційні\\b": "Радиолокационные"
+                "\\bРадіостанції\\b": "Радиостанции"
+                "\\bРакетні,? двигуни\\b": "Ракетные двигатели"
+                "\\bракетні\\b": "ракетные"
+                "\\bРозвідувальні дрони\\b": "Разведывательные дроны"
+                "\\bРучні гранати\\b": "Ручные гранаты"
+                "\\bСамохідна артилерія\\b": "Самоходная артиллерия"
+                "\\bСамохідна\\b": "Самоходная"
+                "\\bСимулятори\\b": "Симуляторы"
+                "\\bСистеми РЕБ\\b": "Системы РЭБ"
+                "\\bСистеми безпеки\\b": "Системы безопасности"
+                "\\bСистеми наведення\\b": "Системы наведения"
+                "\\bСистеми розвідки\\b": "Системы разведки"
+                "\\bСистеми,? управління\\b": "Системы управления"
+                "\\bСистеми\\b": "Системы"
+                "\\bСнайперські гвинтівки\\b": "Снайперские винтовки"
+                "\\bСпеціальні,? матеріали\\b": "Специальные материалы"
+                "\\bСпеціальні\\b": "Специальные"
+                "\\bСтволи\\b": "Стволы"
+                "\\bСуднова арматура\\b": "Судовая арматура"
+                "\\bТактичне спорядження\\b": "Тактическое снаряжение"
+                "\\bТактичне\\b": "Тактическое"
+                "\\bТактичні,? ракети\\b": "Тактические ракеты"
+                "\\bТактичні\\b": "Тактические"
+                "\\bТепловізори\\b": "Тепловизоры"
+                "\\bТестування зразків\\b": "Тестирование образцов"
+                "\\bТестування\\b": "Тестирование"
+                "\\bТорпеди\\b": "Торпеды"
+                "\\bТочне лиття\\b": "Точное литье"
+                "\\bТочне\\b": "Точное"
+                "\\bТранспортні,? літаки\\b": "Транспортные самолеты"
+                "\\bУдарні дрони\\b": "Ударные дроны"
+                "\\bУправління\\b": "Управление"
+                "\\bФортифікація\\b": "Фортификация"
+                "\\bЦивільна\\b": "Гражданская"
+                "\\bЦистерни\\b": "Цистерны"
+                "\\bЯдерні,? боєприпаси\\b": "Ядерные боеприпасы"
+                "\\bЯдерні\\b": "Ядерные"
+                "\\bагрегати\\b": "агрегаты"
+                "\\bаналіз\\b": "анализ"
+                "\\bапаратура локомотивів\\b": "аппаратура локомотивов"
+                "\\bапаратура\\b": "аппаратура"
+                "\\bартилерія\\b": "артиллерия"
+                "\\bбачення\\b": "видение"
+                "\\bбезпеки\\b": "безопасности"
+                "\\bбоєприпаси\\b": "боеприпасы"
+                "\\bбоєприпасів\\b": "боеприпасов"
+                "\\bбудівельних\\b": "строительных"
+                "\\bвагони\\b": "вагоны"
+                "\\bвертольоти\\b": "вертолеты"
+                "\\bвиробництва\\b": "производства"
+                "\\bвисокоточне паливне обладнання\\b": "высокоточное топливное оборудование"
+                "\\bводи\\b": "воды"
+                "\\bдвигуни\\b": "двигатели"
+                "\\bdрони\\b": "дроны"
+                "\\bенергетичні\\b": "энергетические"
+                "\\bживлення\\b": "питание"
+                "\\bзабезпечення\\b": "обеспечение"
+                "\\bзапали\\b": "запалы"
+                "\\bзахист\\b": "защита"
+                "\\b[Зз]в’язок,? і,? навігація\\b": "Связь и навигация"
+                "\\bЗв’язок\\b": "Связь"
+                "\\bзв'язок\\b": "связь"
+                "\\bзразків\\b": "образцов"
+                "\\bкомплекси\\b": "комплексы"
+                "\\bкостюми\\b": "костюмы"
+                "\\bлиття\\b": "литье"
+                "\\bлокомотиви\\b": "локомотивы"
+                "\\bлокомотивів\\b": "локомотивов"
+                "\\bматеріали\\b": "материалы"
+                "\\bматеріалів\\b": "материалов"
+                "\\bмережі\\b": "сети"
+                "\\bнаведення\\b": "наведение"
+                "\\bнавігація\\b": "навигация"
+                "\\bобладнання\\b": "оборудование"
+                "\\bоборона\\b": "оборона"
+                "\\bозброєння\\b": "вооружение"
+                "\\bоптика\\b": "оптика"
+                "\\bплати\\b": "платы"
+                "\\bпослуги\\b": "услуги"
+                "\\bприлади\\b": "приборы"
+                "\\bпрограмне\\b": "программное"
+                "\\bпродукція\\b": "продукция"
+                "\\bпродукції\\b": "продукции"
+                "\\bрадіолокація\\b": "радиолокация"
+                "\\bракети\\b": "ракеты"
+                "\\bрозвідки\\b": "разведки"
+                "\\bрозмінування\\b": "разминирование"
+                "\\bсенсори\\b": "сенсоры"
+                "\\bсилова електроніка\\b": "силовая электроника"
+                "\\bсистем\\b": "системы"
+                "\\bсистеми\\b": "системы"
+                "\\bснаряди\\b": "снаряды"
+                "\\bспорядження\\b": "снаряжение"
+                "\\bстанції\\b": "станции"
+                "\\bтехніка\\b": "техника"
+                "\\bтканини\\b": "ткани"
+                "\\bуправління\\b": "управления"
+                "\\b[Уу]тримання,? та,? обслуговування,? колій\\b": "содержание и обслуживание путей"
+                "\\bта\\b": "и"
+                "\\bфільтри\\b": "фильтры"
+                "\\bцистерни\\b": "цистерны"
+                "\\bчастини\\b": "части"
+                "\\bшасі\\b": "шасси"
+                "\\bшоломи\\b": "шлемы"
+                "\\bі\\b": "и"
+                "\\bіншої\\b": "другой"
+          works:
+            source:
+              fn: "work_udf"
+              post:
+                fn: "coalesce"
+                columns:
+                  - "post"
+                  - "post_en"
+              company: "company_name"
+              company_address: "address"
+              company_ru_inn: "inn"
+              company_ru_ogrn: "ogrn"
+              comment:
+                fn: "trim"
+                column:
+                  fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "primary_okved_code"
+                      value:
+                        fn: "concat"
+                        columns:
+                          - "primary_okved_code"
+                          - fn: "case"
+                            condition:
+                              fn: "isNotNull"
+                              column: "primary_okved_name"
+                            value:
+                              lit: ":"
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "primary_okved_name"
+                      value:
+                        fn: "concat"
+                        columns:
+                          - "primary_okved_name"
+                          - lit: ". "
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "__categories"
+                      value:
+                        fn: "concat_ws"
+                        columns:
+                          - "__categories"
+                          - fn: "case"
+                            condition:
+                              fn: "isNotNull"
+                              column: "__subcategories"
+                            value:
+                              lit: "; "
+                        sep:
+                          lit: ""
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "__subcategories"
+                      value: "__subcategories"
+                  sep:
+                    lit: ""
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                share_percent: "share_percent"
+                share_nominal: "share_nominal"
+                company_address_latitude: "company_latitude"
+                company_address_longitude: "company_longitude"
+                company_regDate: "company_reg_date"
+                company_regionCode: "company_region_code"
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column: "record_date"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+  - id: "employees"
+    entities:
+      persons:
+        entities:
+          - "persons"
+          - "documents"
+        columns:
+          names:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "name"
+                  value:
+                    lit: "\\d{2}\\.\\d{2}\\.\\d{4}"
+                value: "snils_serial"
+              otherwise:
+                fn: "name_udf"
+                column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "name"
+                  value:
+                    lit: "\\d{2}\\.\\d{2}\\.\\d{4}"
+                value:
+                  fn: "birth_date_udf"
+                  column: "birth_date"
+                  date_format:
+                    lit: "%d.%m.%Y"
+              otherwise:
+                fn: "birth_date_udf"
+                column: "birth_date"
+          birth_place:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "birth_place"
+                  - fn: "not"
+                    column:
+                      fn: "rlike"
+                      column: "name"
+                      value:
+                        lit: "\\d{2}\\.\\d{2}\\.\\d{4}"
+                  - fn: "not"
+                    column:
+                      fn: "rlike"
+                      column: "birth_place"
+                      value:
+                        lit: "\\b([Кк][Вв]|[Кк]вартира|[Уу][Лл]|[Уу]лица|delivery|reg|fact|[Дд][Оо][Мм]|[Дд])\\b"
+              value:
+                fn: "address_udf"
+                column: "birth_place"
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "phones"
+                    value:
+                      lit: "\\d"
+                  value:
+                    fn: "phones_udf"
+                    column:
+                      fn: "split"
+                      column: "phones"
+                      pattern:
+                        lit: "[,;]"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "emails"
+                    value:
+                      lit: "@"
+                  value:
+                    fn: "emails_udf"
+                    column:
+                      fn: "split"
+                      column: "emails"
+                      pattern:
+                        lit: "[,;]"
+            filter: true
+      documents:
+        entities:
+          - "documents"
+          - "persons"
+        columns:
+          __passport_serial:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "passport_serial"
+                    value:
+                      lit: "\\d"
+                  value:
+                    fn: "split"
+                    column: "passport_serial"
+                    pattern:
+                      lit: "[,;]"
+          __exploded_inn_serial:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "inn_serial"
+                    value:
+                      lit: "\\d"
+                  value:
+                    fn: "split"
+                    column: "inn_serial"
+                    pattern:
+                      lit: "[,;]"
+          __inn_serial:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "name"
+                  value:
+                    lit: "\\d{2}\\.\\d{2}\\.\\d{4}"
+                value:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "patronymic_inn"
+                    value:
+                      lit: "\\d{11,12}"
+                  value: "patronymic_inn"
+              otherwise:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "__exploded_inn_serial"
+                  value:
+                    lit: "\\d{11,12}"
+                value: "__exploded_inn_serial"
+          __snils_serial:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "snils_serial"
+                value:
+                  lit: "\\d"
+              value: "snils_serial"
+          __driver_license_serial:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "driver_license"
+                value:
+                  lit: "^\\d{10} \\d{2}\\.\\d{2}\\.\\d{4}$"
+              value:
+                fn: "regexp_extract"
+                column: "driver_license"
+                pattern:
+                  lit: "^(\\d{10}) "
+                index:
+                  lit: 1
+          __driver_license_date_issue:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "driver_license"
+                value:
+                  lit: "^\\d{10} \\d{2}\\.\\d{2}\\.\\d{4}$"
+              value:
+                fn: "regexp_extract"
+                column: "driver_license"
+                pattern:
+                  lit: " (\\d{2}\\.\\d{2}\\.\\d{4})$"
+                index:
+                  lit: 1
+          documents:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "document_udf"
+                      type:
+                        lit: "паспорт гражданина рф"
+                      serial: "__passport_serial"
+                    - fn: "document_udf"
+                      type:
+                        lit: "инн"
+                      serial: "__inn_serial"
+                    - fn: "document_udf"
+                      type:
+                        lit: "снилс"
+                      serial: "__snils_serial"
+                    - fn: "document_udf"
+                      type:
+                        lit: "водительское удостоверение"
+                      serial: "__driver_license_serial"
+                      date_issue: "__driver_license_date_issue"
+                      date_format:
+                        lit: "%d.%m.%Y"
+            filter: true
+      vehicles:
+        columns:
+          __number:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "split"
+                  column: "numbers"
+                  pattern:
+                    lit: ","
+          vehicles:
+            source:
+              fn: "vehicle_udf"
+              type:
+                lit: 1
+              number: "__number"
+            filter: true
+      address:
+        entities:
+          - "address"
+          - "persons"
+        columns:
+          __address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column: "name"
+                      value:
+                        lit: "\\d{2}\\.\\d{2}\\.\\d{4}"
+                    value:
+                      fn: "split"
+                      column: "birth_place"
+                      pattern:
+                        lit: ";"
+                  otherwise:
+                    fn: "split"
+                    column: "address"
+                    pattern:
+                      lit: ";"
+          address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "regexp_replace"
+                column: "__address"
+                pattern:
+                  lit: "\\b(delivery|reg|fact):?\\b"
+            filter: true
+      works:
+        columns:
+          __categories:
+            source:
+              fn: "regexp_replace_all"
+              column:
+                fn: "trim"
+                column: "categories"
+                symbols:
+                  lit: " []"
+              values:
+                "^Виробництво ключових компонентів$": "Производство ключевых компонентов"
+                "^Ремонт, Модернізація та Обслуговування$": "Ремонт, модернизация и обслуживание"
+                "^Інженерне та Інфраструктурне Забезпечення$": "Инженерное и инфраструктурное обеспечение"
+                "^Радіоелектроніка та РЕБ$": "Радиоэлектроника и РЭБ"
+                "^Авіаційна промисловість$": "Авиационная промышленность"
+                "^Військове Тилове Забезпечення$": "Военное тыловое обеспечение"
+                "^Бронетанкова та Автомобільна Техніка$": "Бронетанковая и автомобильная техника"
+                "^Військове кораблебудування$": "Военное кораблестроение"
+                "^Інформаційні та Кібернетичні Системи \\(C4ISR\\)$": "Информационные и кибернетические системы (C4ISR)"
+                "^Дослідження та розробка \\(R&D\\)$": "Исследования и разработки (R&D)"
+                "^Безпілотні Комплекси \\(БПЛА/UGV\\)$": "Беспилотные комплексы (БПЛА/UGV)"
+                "^Боєприпаси та Вибухові Речовини$": "Боеприпасы и взрывчатые вещества"
+                "^Ракетно-Артилерійські Системи$": "Ракетно-артиллерийские системы"
+                "^РЖД і залізничне машинобудування$": "РЖД и железнодорожное машиностроение"
+                "^Хімічний та Біологічний Захист \\(РХБЗ\\)$": "Химическая и биологическая защита (РХБЗ)"
+                "^Стрілецька Зброя та Спорядження$": "Стрелковое оружие и снаряжение"
+          __subcategories:
+            source:
+              fn: "regexp_replace_all_udf"
+              column: "subcategories"
+              values:
+                "\\bFPV-дрони\\b": "FPV-дроны"
+                "\\bназемні станції\\b": "наземные станции"
+                "\\bЄмності\\b": "Емкости"
+                "\\bІнженерна техніка\\b": "Инженерная техника"
+                "\\bІнженерна\\b": "Инженерная"
+                "\\bІнше\\b": "Другое"
+                "\\bІнші тканини\\b": "Другие ткани"
+                "\\bІнші\\b": "Другие"
+                "\\bАвтомати\\b": "Автоматы"
+                "\\bАвтопілоти\\b": "Автопилоты"
+                "\\bАвіаційна радіолокація\\b": "Авиационная радиолокация"
+                "\\bАвіаційна\\b": "Авиационная"
+                "\\bАвіаційне,? шасі\\b": "Авиационное шасси"
+                "\\bАвіаційне\\b": "Авиационное"
+                "\\бАвіаційні,? двигуни\\b": "Авиационные двигатели"
+                "\\bАвіаційні\\b": "Авиационные"
+                "\\bАвіоніка\\b": "Авионика"
+                "\\bАналітичні системи\\b": "Аналитические системы"
+                "\\bАналітичні\\b": "Аналитические"
+                "\\bАнтени\\b": "Антенны"
+                "\\bАртилерійські снаряди\\b": "Артиллерийские снаряды"
+                "\\bАртилерійські\\b": "Артиллерийские"
+                "\\bБПЛА крила\\b": "БПЛА крылья"
+                "\\bБалістичний захист\\b": "Баллистическая защита"
+                "\\bБалістичний\\b": "Баллистическая"
+                "\\bБалістичні тканини\\b": "Баллистические ткани"
+                "\\bБалістичні\\b": "Баллистические"
+                "\\bБашти та модулі\\b": "Башни и модули"
+                "\\bБойові кораблі\\b": "Боевые корабли"
+                "\\bБойові машини піхоти\\b": "Боевые машины пехоты"
+                "\\bБортові системи\\b": "Бортовые системы"
+                "\\bБортові\\b": "Бортовые"
+                "\\bБронеавтомобілі\\b": "Бронеавтомобили"
+                "\\bБронежилети\\b": "Бронежилеты"
+                "\\bБронезахист\\b": "Бронезащита"
+                "\\bБронетранспортери\\b": "Бронетранспортеры"
+                "\\bБудівництво\\b": "Строительство"
+                "\\bБуксирована артилерія\\b": "Буксируемая артиллерия"
+                "\\bВерстати та обладнання\\b": "Станки и оборудование"
+                "\\bВерстати\\b": "Станки"
+                "\\bВибухові,? речовини\\b": "Взрывчатые вещества"
+                "\\bВинищувачі\\b": "Истребители"
+                "\\bВиробництво,? пороху\\b": "Производство пороха"
+                "\\bВисокоточні,? боєприпаси\\b": "Высокоточные боеприпасы"
+                "\\bВодні дрони\\b": "Водные дроны"
+                "\\bВійськова оптика\\b": "Военная оптика"
+                "\\bВійськова форма\\b": "Военная форма"
+                "\\bВійськова\\b": "Военная"
+                "\\bВійськове ПЗ\\b": "Военное ПО"
+                "\\bВійськове програмне забезпечення\\b": "Военное программное обеспечение"
+                "\\bВійськове\\b": "Военное"
+                "\\bВійськовий зв'язок\\b": "Военная связь"
+                "\\bВійськовий\\b": "Военная"
+                "\\bВійськові,? вертольоти\\b": "Военные вертулеты"
+                "\\bВійськові\\b": "Военные"
+                "\\bГенератори та енергетичні системи\\b": "Генераторы и энергетические системы"
+                "\\bГенератори\\b": "Генераторы"
+                "\\bГеоінформаційні системи\\b": "Геоинформационные системы"
+                "\\bГранатомети\\b": "Гранатометы"
+                "\\bГусеничне шасі\\b": "Гусеничное шасси"
+                "\\bГусеничне\\b": "Гусеничное"
+                "\\bГідравлічні агрегати\\b": "Гидравлические агрегаты"
+                "\\bГідравлічні\\b": "Гидравлические"
+                "\\bГідроакустика\\b": "Гидроакустика"
+                "\\bГільзи\\b": "Гильзы"
+                "\\bДатчики,? та,? сенсори\\b": "Датчики и сенсоры"
+                "\\bДетонатори та запали\\b": "Детонаторы и запалы"
+                "\\bДетонатори\\b": "Детонаторы"
+                "\\bДруковані,? плати\\b": "Печатные платы"
+                "\\bДруковані\\b": "Печатные"
+                "\\bЕлектродвигуни\\b": "Электродвигатели"
+                "\\bЕлектромеханіка\\b": "Электромеханика"
+                "\\bЕлементи живлення\\b": "Элементы питания"
+                "\\bЕлементи\\b": "Элементы"
+                "\\bЗалізнична\\b": "Железнодорожная"
+                "\\bЗапасні,? частини\\b": "Запасные части"
+                "\\bЗапасні\\b": "Запасные"
+                "\\bЗапчастини\\b": "Запчасти"
+                "\\bЗасоби РХБЗ\\b": "Средства РХБЗ"
+                "\\bЗасоби\\b": "Средства"
+                "\\bЗахисні костюми\\b": "Защитные костюмы"
+                "\\bЗахисні\\b": "Защитные"
+                "\\bЗберігання\\b": "Хранение"
+                "\\bЗброя\\b": "Оружие"
+                "\\bЗенітно-ракетні\\b": "Зенитно-ракетные"
+                "\\bЗенітно-ракетні комплекси\\b": "Зенитно-ракетные комплексы"
+                "\\bКабельно-провідникова\\b": "Кабельно-проводная"
+                "\\bКабельно-провідникова продукція\\b": "Кабельно-проводная продукция"
+                "\\bКапсулі\\b": "Капсули"
+                "\\bКаски та шоломи\\b": "Каски и шлемы"
+                "\\bКатапультні крісла\\b": "Катапультные кресла"
+                "\\bКолісне,? шасі\\b": "Колесное шасси"
+                "\\bКолісне\\b": "Колесное"
+                "\\bКомплекси РЕР\\b": "Комплексы РЭР"
+                "\\bКомпоненти,? боєприпасів\\b": "Компоненты боеприпасов"
+                "\\bКомпоненти\\b": "Компоненты"
+                "\\bКомунікаційні мережі\\b": "Коммуникационные сети"
+                "\\bКомунікаційні\\b": "Коммуникационные"
+                "\\bКорабельна радіолокація\\b": "Корабельная радиолокация"
+                "\\bКорабельна\\b": "Корабельная"
+                "\\bКорабельні,? двигуни\\b": "Корабельные двигатели"
+                "\\bКорисне навантаження\\b": "Полезная нагрузка"
+                "\\bКорпуси\\b": "Корпуса"
+                "\\bКосмічна,? сфера\\b": "Космическая сфера"
+                "\\bКосмічна\\b": "Космическая"
+                "\\bКрила та хвостове оперення\\b": "Крылья и хвостовое оперение"
+                "\\bКрила і хвостове оперення\\b": "Крылья и хвостовое оперение"
+                "\\bКрилаті\\b": "Крылатые"
+                "\\bКулемети\\b": "Пулеметы"
+                "\\bЛогістика\\b": "Логистика"
+                "\\bЛьотне спорядження\\b": "Лётное снаряжение"
+                "\\bЛіки та інші препарати\\b": "Лекарства и другие препараты"
+                "\\bМагніти\\b": "Магниты"
+                "\\bМашини для розмінування\\b": "Машины для разминирования"
+                "\\bМашини\\b": "Машины"
+                "\\bМедичний захист\\b": "Медицинская защита"
+                "\\bМедичний\\b": "Медицинский"
+                "\\bМедичні набори\\b": "Медицинские наборы"
+                "\\bМедичні послуги\\b": "Медицинские услуги"
+                "\\бМоделювання та аналіз\\b": "Моделирование и анализ"
+                "\\bМоделювання\\b": "Моделирование"
+                "\\bМодернізація систем\\b": "Модернизация систем"
+                "\\bМодернізація\\b": "Модернизация"
+                "\\bМорська\\b": "Морская"
+                "\\bМорське озброєння\\b": "Морское вооружение"
+                "\\bМорське\\b": "Морское"
+                "\\bМостобудування\\b": "Мостостроение"
+                "\\bМультикоптерні\\b": "Мультикоптерные"
+                "\\bМікроелектроніка\\b": "Микроэлектроника"
+                "\\bМікроэлектроніка\\b": "Микроэлектроника"
+                "\\bМіномети\\b": "Минометы"
+                "\\bМінометні міни\\b": "Минометные мины"
+                "\\bНавігаційне обладнання\\b": "Навигационное оборудование"
+                "\\bНавігаційне\\b": "Навигационное"
+                "\\bНадбудови\\b": "Надстройки"
+                "\\bНаземне,? забезпечення\\b": "Наземное обеспечение"
+                "\\bНаземне\\b": "Наземное"
+                "\\bНаземні дрони\\b": "Наземные дроны"
+                "\\bНаземні радари\\b": "Наземные радары"
+                "\\bНаземні\\b": "Наземные"
+                "\\bНамети та укриття\\b": "Палатки и укрытия"
+                "\\bНічне бачення\\b": "Ночное видение"
+                "\\bНічне\\b": "Ночное"
+                "\\bОбладнання\\b": "Оборудование"
+                "\\bОбробка\\b": "Обработка"
+                "\\bОбчислювальна техніка\\b": "Вычислительная техника"
+                "\\bОбчислювальна\\b": "Вычислительная"
+                "\\bОпалювальне/Охолодження\\b": "Отопительное/Охлаждение"
+                "\\bОпалювальне/Охолодження обладнання\\b": "Отопительное/Охлаждающее оборудование"
+                "\\bОптичні прилади\\b": "Оптические приборы"
+                "\\bОптичні\\b": "Оптические"
+                "\\bОсвітлення\\b": "Освещение"
+                "\\bОсвітні\\b": "Осветительные"
+                "\\bОчищення води\\b": "Очистка воды"
+                "\\bОчищення\\b": "Очистка"
+                "\\bОперативно-тактичні\\b": "Оперативно-тактические"
+                "\\bППО\\b": "ПВО"
+                "\\bПаливно-мастильні\\b": "Горюче-смазочные"
+                "\\bПаливно-мастильні матеріали\\b": "Горюче-смазочные материалы"
+                "\\bПатрони\\b": "Патроны"
+                "\\bПереробка\\b": "Переработка"
+                "\\bПланери\\b": "Планеры"
+                "\\bПольові кухні\\b": "Полевые кухни"
+                "\\bПоставка,? будівельних,? матеріалів\\b": "Поставка строительных материалов"
+                "\\bПоставка,? іншої,? продукції\\b": "Поставка другой продукции"
+                "\\bПостачання будівельних матеріалів\\b": "Поставка строительных материалов"
+                "\\bПрекурсори\\b": "Прекурсоры"
+                "\\bПриціли\\b": "Прицелы"
+                "\\bПроектування\\b": "Проектирование"
+                "\\bПротезування\\b": "Протезирование"
+                "\\bПротигази та фільтри\\b": "Протигазы и фильтры"
+                "\\bПротигази\\b": "Протигазы"
+                "\\bПротимінний захист\\b": "Противоминная защита"
+                "\\bПротипожежний захист\\b": "Протипожарная защита"
+                "\\bПрототипування Тестування зразків\\b": "Прототипирование Тестирование образцов"
+                "\\bПрототипування Тестування зразківр\\b": "Прототипирование Тестирование образцов"
+                "\\bПрототипування\\b": "Прототипирование"
+                "\\bПускові установки\\b": "Пусковые установки"
+                "\\bПускові\\b": "Пусковые"
+                "\\bПідводні човни\\b": "Подводные лодки"
+                "\\bРЕБ\\b": "РЭБ"
+                "\\bРСЗВ\\b": "РСЗО"
+                "\\bРадіоелектронні\\b": "Радиоэлектронные"
+                "\\bРадіоелектроніка\\b": "Радиоэлектроника"
+                "\\bРадіолокаційні станції\\b": "Радиолокационные станции"
+                "\\bРадіолокаційні\\b": "Радиолокационные"
+                "\\bРадіостанції\\b": "Радиостанции"
+                "\\bРакетні,? двигуни\\b": "Ракетные двигатели"
+                "\\bракетні\\b": "ракетные"
+                "\\bРозвідувальні дрони\\b": "Разведывательные дроны"
+                "\\bРучні гранати\\b": "Ручные гранаты"
+                "\\bСамохідна артилерія\\b": "Самоходная артиллерия"
+                "\\bСамохідна\\b": "Самоходная"
+                "\\bСимулятори\\b": "Симуляторы"
+                "\\bСистеми РЕБ\\b": "Системы РЭБ"
+                "\\bСистеми безпеки\\b": "Системы безопасности"
+                "\\bСистеми наведення\\b": "Системы наведения"
+                "\\bСистеми розвідки\\b": "Системы разведки"
+                "\\bСистеми,? управління\\b": "Системы управления"
+                "\\bСистеми\\b": "Системы"
+                "\\bСнайперські гвинтівки\\b": "Снайперские винтовки"
+                "\\bСпеціальні,? матеріали\\b": "Специальные материалы"
+                "\\bСпеціальні\\b": "Специальные"
+                "\\bСтволи\\b": "Стволы"
+                "\\bСуднова арматура\\b": "Судовая арматура"
+                "\\bТактичне спорядження\\b": "Тактическое снаряжение"
+                "\\bТактичне\\b": "Тактическое"
+                "\\bТактичні,? ракети\\b": "Тактические ракеты"
+                "\\bТактичні\\b": "Тактические"
+                "\\bТепловізори\\b": "Тепловизоры"
+                "\\bТестування зразків\\b": "Тестирование образцов"
+                "\\bТестування\\b": "Тестирование"
+                "\\bТорпеди\\b": "Торпеды"
+                "\\bТочне лиття\\b": "Точное литье"
+                "\\bТочне\\b": "Точное"
+                "\\bТранспортні,? літаки\\b": "Транспортные самолеты"
+                "\\bУдарні дрони\\b": "Ударные дроны"
+                "\\bУправління\\b": "Управление"
+                "\\bФортифікація\\b": "Фортификация"
+                "\\bЦивільна\\b": "Гражданская"
+                "\\bЦистерни\\b": "Цистерны"
+                "\\bЯдерні,? боєприпаси\\b": "Ядерные боеприпасы"
+                "\\bЯдерні\\b": "Ядерные"
+                "\\bагрегати\\b": "агрегаты"
+                "\\bаналіз\\b": "анализ"
+                "\\bапаратура локомотивів\\b": "аппаратура локомотивов"
+                "\\bапаратура\\b": "аппаратура"
+                "\\bартилерія\\b": "артиллерия"
+                "\\bбачення\\b": "видение"
+                "\\bбезпеки\\b": "безопасности"
+                "\\bбоєприпаси\\b": "боеприпасы"
+                "\\bбоєприпасів\\b": "боеприпасов"
+                "\\bбудівельних\\b": "строительных"
+                "\\bвагони\\b": "вагоны"
+                "\\bвертольоти\\b": "вертолеты"
+                "\\bвиробництва\\b": "производства"
+                "\\bвисокоточне паливне обладнання\\b": "высокоточное топливное оборудование"
+                "\\bводи\\b": "воды"
+                "\\bдвигуни\\b": "двигатели"
+                "\\bdрони\\b": "дроны"
+                "\\bенергетичні\\b": "энергетические"
+                "\\bживлення\\b": "питание"
+                "\\bзабезпечення\\b": "обеспечение"
+                "\\bзапали\\b": "запалы"
+                "\\bзахист\\b": "защита"
+                "\\b[Зз]в’язок,? і,? навігація\\b": "Связь и навигация"
+                "\\bЗв’язок\\b": "Связь"
+                "\\bзв'язок\\b": "связь"
+                "\\bзразків\\b": "образцов"
+                "\\bкомплекси\\b": "комплексы"
+                "\\bкостюми\\b": "костюмы"
+                "\\bлиття\\b": "литье"
+                "\\bлокомотиви\\b": "локомотивы"
+                "\\bлокомотивів\\b": "локомотивов"
+                "\\bматеріали\\b": "материалы"
+                "\\bматеріалів\\b": "материалов"
+                "\\bмережі\\b": "сети"
+                "\\bнаведення\\b": "наведение"
+                "\\bнавігація\\b": "навигация"
+                "\\bобладнання\\b": "оборудование"
+                "\\bоборона\\b": "оборона"
+                "\\bозброєння\\b": "вооружение"
+                "\\bоптика\\b": "оптика"
+                "\\bплати\\b": "платы"
+                "\\bпослуги\\b": "услуги"
+                "\\bприлади\\b": "приборы"
+                "\\bпрограмне\\b": "программное"
+                "\\bпродукція\\b": "продукция"
+                "\\bпродукції\\b": "продукции"
+                "\\bрадіолокація\\b": "радиолокация"
+                "\\bракети\\b": "ракеты"
+                "\\bрозвідки\\b": "разведки"
+                "\\bрозмінування\\b": "разминирование"
+                "\\bсенсори\\b": "сенсоры"
+                "\\bсилова електроніка\\b": "силовая электроника"
+                "\\bсистем\\b": "системы"
+                "\\bсистеми\\b": "системы"
+                "\\bснаряди\\b": "снаряды"
+                "\\bспорядження\\b": "снаряжение"
+                "\\bстанції\\b": "станции"
+                "\\bтехніка\\b": "техника"
+                "\\bтканини\\b": "ткани"
+                "\\bуправління\\b": "управления"
+                "\\b[Уу]тримання,? та,? обслуговування,? колій\\b": "содержание и обслуживание путей"
+                "\\bта\\b": "и"
+                "\\bфільтри\\b": "фильтры"
+                "\\bцистерни\\b": "цистерны"
+                "\\bчастини\\b": "части"
+                "\\bшасі\\b": "шасси"
+                "\\bшоломи\\b": "шлемы"
+                "\\bі\\b": "и"
+                "\\bіншої\\b": "другой"
+          works:
+            source:
+              fn: "work_udf"
+              post:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "post"
+                  value:
+                    lit: "[а-яёА-ЯЁ]"
+                value: "post"
+              company: "company_name"
+              date_start:
+                fn: "work_date_udf"
+                column: "date_start"
+                date_format:
+                  lit: "%Y-%m-%d"
+              date_end:
+                fn: "work_date_udf"
+                column: "date_end"
+                date_format:
+                  lit: "%Y-%m-%d"
+              company_address: "address"
+              company_ru_inn: "inn"
+              company_ru_ogrn: "ogrn"
+              comment:
+                fn: "trim"
+                column:
+                  fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "primary_okved_code"
+                      value:
+                        fn: "concat"
+                        columns:
+                          - "primary_okved_code"
+                          - fn: "case"
+                            condition:
+                              fn: "isNotNull"
+                              column: "primary_okved_name"
+                            value:
+                              lit: ":"
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "primary_okved_name"
+                      value:
+                        fn: "concat"
+                        columns:
+                          - "primary_okved_name"
+                          - lit: ". "
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "__categories"
+                      value:
+                        fn: "concat_ws"
+                        columns:
+                          - "__categories"
+                          - fn: "case"
+                            condition:
+                              fn: "isNotNull"
+                              column: "__subcategories"
+                            value:
+                              lit: "; "
+                        sep:
+                          lit: ""
+                    - fn: "case"
+                      condition:
+                        fn: "isNotNull"
+                        column: "__subcategories"
+                      value: "__subcategories"
+                  sep:
+                    lit: ""
+            filter: true
+      raw_metadata:
+        entities:
+          - "raw_metadata"
+          - "works"
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                "data_occupations":
+                  fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "rlike"
+                      column: "post"
+                      value:
+                        lit: "[а-яёА-ЯЁ]"
+                  value: "post"
+                company_address_latitude: "company_latitude"
+                company_address_longitude: "company_longitude"
+                company_regDate: "company_reg_date"
+                company_regionCode: "company_region_code"
+            filter: true
+      actuality:
+        entities: "works"
+        columns:
+          actuality:
+            source:
+              fn: "latest_actuality_date_udf"
+              columns:
+                - "date_start"
+                - "date_end"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+gold:
+  ids:
+    - id: "executives"
+    - id: "employees"
+  transformations:
+    - op: "withColumn"
+      column: "phones"
+      function:
+        fn: "slice"
+        column: "phones"
+        start:
+          lit: 1
+        len:
+          lit: 15
+    - op: "withColumn"
+      column: "emails"
+      function:
+        fn: "slice"
+        column: "emails"
+        start:
+          lit: 1
+        len:
+          lit: 15
+    - op: "withColumn"
+      column: "documents"
+      function:
+        fn: "slice"
+        column: "documents"
+        start:
+          lit: 1
+        len:
+          lit: 10
+    - op: "withColumn"
+      column: "vehicles"
+      function:
+        fn: "slice"
+        column: "vehicles"
+        start:
+          lit: 1
+        len:
+          lit: 20
+  remain: [ "works", "documents", "phones", "emails" ]

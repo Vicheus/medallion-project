@@ -1,0 +1,80 @@
+from pyspark.sql.functions import when, col, array, lit
+from parsetron import Parsetron
+from parsetron.sections.main.udfs import (
+    name_udf,
+    phone_udf,
+    actuality_date_udf,
+    address_udf,
+    email_udf,
+    raw_metadata_udf,
+)
+
+
+class ProjectParsetron(Parsetron):
+    test_mode: bool = False
+    dataset_code_name: str = "index_0408"
+
+    def parser(self):
+        df = (
+            self.read(
+                path="/media/user/SAMSUNG/Databases/index_0408/raw/gazon-trava.ru - @StormBaseAdapter.csv",
+                sep=",",
+            )
+            .withColumn("names", name_udf(col("name")))
+            .withColumn("phones", phone_udf(col("phone")))
+            .withColumn("emails", email_udf(col("email")))
+            .withColumn("address", address_udf(col("adress")))
+            .withColumn(
+                "raw_metadata",
+                raw_metadata_udf(
+                    lit("text"), col("text"), lit("comment"), col("comment")
+                ),
+            )
+            .withColumn(
+                "actuality", actuality_date_udf(col("date"), lit("%m/%d/%Y %H:%M:%S"))
+            )
+            .select("names", "phones", "emails", "address", "raw_metadata", "actuality")
+        )
+
+        df = df.drop_duplicates(["names", "phones", "emails"])
+
+        df = df.repartition(self.output_file_count)
+
+        df = (
+            df.withColumn(
+                "names",
+                when(col("names").isNotNull(), array(col("names"))).otherwise(None),
+            )
+            .withColumn(
+                "phones",
+                when(col("phones").isNotNull(), array(col("phones"))).otherwise(None),
+            )
+            .withColumn(
+                "emails",
+                when(col("emails").isNotNull(), array(col("emails"))).otherwise(None),
+            )
+            .withColumn(
+                "address",
+                when(col("address").isNotNull(), array(col("address"))).otherwise(None),
+            )
+            .withColumn(
+                "raw_metadata",
+                when(
+                    col("raw_metadata").isNotNull(), array(col("raw_metadata"))
+                ).otherwise(None),
+            )
+        )
+
+        df = df.filter(
+            col("names").isNotNull()
+            & (col("phones").isNotNull() | col("emails").isNotNull())
+        )
+
+        df.show(n=100, truncate=False)
+
+        return df
+
+
+if __name__ == "__main__":
+    parsetron = ProjectParsetron()
+    parsetron.run()

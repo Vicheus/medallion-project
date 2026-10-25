@@ -1,0 +1,45 @@
+sourceId: "index_0715"
+
+bronze:
+  read:
+    path: "8 ОА - 300 9956 чел._8654.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    forces:
+      columns:
+        tag_number: "Личный номер"
+        rank: "Звание"
+        position: "Должность"
+        unit_name: "Подразделение"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank: "rank"
+            position: "position"
+            unit_name: "unit_name"
+          filter: true
+gold:
+  remain: [ "forces" ]

@@ -1,0 +1,58 @@
+sourceId: "index_0727"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+    forces:
+      columns:
+        tag_number: "metadata.military_id"
+        rank: "metadata.military_rank"
+        position: "metadata.work_position"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    address:
+      entities: "persons"
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              lit: "город Тверь в/ч 53956"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank:
+              fn: "regexp_replace"
+              column: "rank"
+              pattern:
+                lit: ";.*$"
+            unit_code:
+              lit: "53956"
+            unit_name:
+              lit: "79 реактивно-артиллерийская бригада"
+            position:
+              fn: "regexp_replace"
+              column: "position"
+              pattern:
+                lit: "(79 реактивно-артиллерийской бригады Западного ВО|(реактивной артиллерийской батареи)? реактивного артиллерийского дивизиона 79 реактивно-артиллерийской бригады)$"
+          filter: true
+gold:
+  remain: [ "forces" ]

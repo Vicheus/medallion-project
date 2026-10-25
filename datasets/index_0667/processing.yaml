@@ -1,0 +1,72 @@
+sourceId: "index_0667"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/index_0667/raw/sportfood40_ru_07_2023.csv"
+    options:
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "name"
+    phones:
+      columns:
+        phone: "phone_number"
+    emails:
+      columns:
+        email: "email"
+    address:
+      columns:
+        address1: "address"
+        address2: "Адрес2"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"    
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"    
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "address_udf"
+                  column: "address1"
+                - fn: "address_udf"
+                  column: "address2"
+          filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: gt
+        column:
+            fn: size
+            column: "phones"
+        value:
+            lit: 0
+  

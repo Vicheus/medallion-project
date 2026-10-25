@@ -1,0 +1,63 @@
+sourceId: "index_0687"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0687/raw/военсбыт.рф_8.3k_08_2026.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        name: "name"
+    address:
+      columns:
+        address: "address"
+    phones:
+      columns:
+        phone: "phone_number"
+    raw_metadata:
+        columns:
+          comment: "comment"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                comment: "comment"
+            filter: true
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

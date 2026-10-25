@@ -1,0 +1,96 @@
+sourceId: "index_0673"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0673/raw/kаssу_ru.csv"
+    options:
+      inferSchema: false
+      sep: ","
+    replaceWithNone: "NULL"
+  entities:
+    persons:
+      columns:
+        first_name: "name"
+        last_name: "family"
+        middle_name: "patronymic"
+        sex: "sex"
+        birth_date: "birthday"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+    raw_metadata:
+        columns:
+          password: "password"
+          password_old: "password_old"
+    actuality:
+      columns:
+        data: "dt_update"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: 
+              fn: "from_unixtime"
+              column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d %H:%M:%S"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                password: "password"
+                password_old: "password_old"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column:
+              fn: "from_unixtime"
+              column: "data"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

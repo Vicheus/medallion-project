@@ -1,0 +1,53 @@
+sourceId: "index_0800"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0800/raw/duhirf.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        first_name: "first_name"
+        last_name: "last_name"
+        middle_name: "middle_name"
+        birth_date: "birthday"
+    phones:
+      columns:
+        phone: "phone_number"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

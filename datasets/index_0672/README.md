@@ -1,0 +1,124 @@
+# Parsetron results
+
+## About row data
+
+> - Code name: index_0672
+> - File path: rus-zоІоto_ru.csv
+> - Total rows: 89600
+
+### Schema
+```
+root
+ |-- CustomerCustomFieldsStores: string (nullable = true)
+ |-- CustomerFirstName: string (nullable = true)
+ |-- CustomerMiddleName: string (nullable = true)
+ |-- CustomerLastName: string (nullable = true)
+ |-- CustomerIanaTimeZone: string (nullable = true)
+ |-- CustomerTimeZoneSource: string (nullable = true)
+ |-- CustomerIdsMindboxId: string (nullable = true)
+ |-- CustomerBirthDate: string (nullable = true)
+ |-- CustomerIsEmailInvalid: string (nullable = true)
+ |-- CustomerIsMobilePhoneInvalid: string (nullable = true)
+ |-- CustomerChangeDateTimeUtc: string (nullable = true)
+ |-- CustomerIsEmailConfirmed: string (nullable = true)
+ |-- CustomerIdsWebsiteID: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoIsSubscribed: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoSmsIsSubscribed: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoWebPushIsSubscribed: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoViberIsSubscribed: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoMobilePushIsSubscribed: string (nullable = true)
+ |-- CustomerCustomerSubscriptionsrus-zolotoEmailIsSubscribed: string (nullable = true)
+ |-- CustomerEmail: string (nullable = true)
+ |-- CustomerMobilePhone: string (nullable = true)
+ |-- CustomerPendingEmail: string (nullable = true)
+ |-- _c22: string (nullable = true)
+
+```
+
+### Data sample
+```
+| CustomerCustomFieldsStores   | CustomerFirstName   | CustomerMiddleName   | CustomerLastName   | CustomerIanaTimeZone   | CustomerTimeZoneSource   |   CustomerIdsMindboxId | CustomerBirthDate   | CustomerIsEmailInvalid   | CustomerIsMobilePhoneInvalid   | CustomerChangeDateTimeUtc   | CustomerIsEmailConfirmed   |   CustomerIdsWebsiteID | CustomerCustomerSubscriptionsrus-zolotoIsSubscribed   | CustomerCustomerSubscriptionsrus-zolotoSmsIsSubscribed   | CustomerCustomerSubscriptionsrus-zolotoWebPushIsSubscribed   | CustomerCustomerSubscriptionsrus-zolotoViberIsSubscribed   | CustomerCustomerSubscriptionsrus-zolotoMobilePushIsSubscribed   | CustomerCustomerSubscriptionsrus-zolotoEmailIsSubscribed   | CustomerEmail                 |   CustomerMobilePhone | CustomerPendingEmail   | _c22   |
+|:-----------------------------|:--------------------|:---------------------|:-------------------|:-----------------------|:-------------------------|-----------------------:|:--------------------|:-------------------------|:-------------------------------|:----------------------------|:---------------------------|-----------------------:|:------------------------------------------------------|:---------------------------------------------------------|:-------------------------------------------------------------|:-----------------------------------------------------------|:----------------------------------------------------------------|:-----------------------------------------------------------|:------------------------------|----------------------:|:-----------------------|:-------|
+|                              | Елена               |                      |                    | Europe/Tallinn         | tracker                  |                1509404 |                     | false                    |                                | 2025-01-09                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | elenaoleg12@gmail.com         |                       |                        |        |
+|                              | Людмила             |                      | Юсупова            | Europe/Samara          | tracker                  |                 222599 | 1970-01-01          | false                    | false                          | 2024-12-20                  | false                      |                  44000 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | yusupova_lyuda@internet.ru    |           79648841074 |                        |        |
+|                              | Елена               |                      |                    | Europe/Samara          | tracker                  |                 921574 |                     | false                    |                                | 2024-12-28                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | lenok_krat@mail.ru            |                       |                        |        |
+|                              | Елена               |                      | Ворочек            | Europe/Samara          | tracker                  |                1263549 | 1979-12-23          | false                    | false                          | 2025-01-04                  | false                      |                  46087 |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | elenavorochek@gmail.com       |           79879119769 |                        |        |
+|                              | Диана               |                      | Перепеченова       | Europe/Samara          | tracker                  |                 440605 | 2006-09-12          | false                    | false                          | 2024-12-04                  | false                      |                  45053 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | dianka.perepechenova@mail.ru  |           79170997898 |                        |        |
+|                              | Елена               |                      |                    | Europe/Paris           | tracker                  |                1324083 |                     | false                    |                                | 2025-01-05                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | olena5806@gmail.com           |                       |                        |        |
+| Остров                       | Жанна               |                      | Скурат             | Europe/Moscow          | tracker                  |                 487245 | 1970-01-01          | false                    | false                          | 2024-12-28                  | false                      |                  45602 |                                                       | true                                                     |                                                              |                                                            |                                                                 | true                                                       | zhannaskurat@rambler.ru       |           79203318086 |                        |        |
+| Сафоново                     | Валери              |                      | Малюго             | Europe/Moscow          | tracker                  |                1374579 | 1998-04-13          | false                    | false                          | 2025-01-06                  | true                       |                  46147 |                                                       | true                                                     |                                                              |                                                            |                                                                 | true                                                       | lera.vasilieva2017@yandex.ru  |           79203385570 |                        |        |
+|                              | Ирина               |                      | Алферова           | Europe/Moscow          | tracker                  |                 313538 | 1962-12-05          | false                    | false                          | 2024-12-08                  | false                      |                  44430 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | alferovairusa@rambler.ru      |           79156510177 |                        |        |
+|                              | Яна                 |                      |                    | Europe/Moscow          | tracker                  |                 957582 |                     | false                    |                                | 2024-12-29                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | cvetik__88@mail.ru            |                       |                        |        |
+|                              | Яна                 |                      |                    | Europe/Moscow          | tracker                  |                1311892 |                     | false                    |                                | 2025-01-05                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | yana.fatowa@yandex.ru         |                       |                        |        |
+|                              | Яна                 |                      |                    | Europe/Moscow          | tracker                  |                1337778 |                     | false                    |                                | 2025-01-05                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | iana.tarasova2011@yandex.ru   |                       |                        |        |
+|                              | Яна                 |                      | Гулакова           | Europe/Moscow          | tracker                  |                1434257 | 2000-01-11          | false                    | false                          | 2025-01-07                  | true                       |                  46167 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | jana0309@icloud.com           |           79206633697 |                        |        |
+|                              | Яна                 |                      |                    | Europe/Moscow          | tracker                  |                1462617 |                     | false                    |                                | 2025-01-08                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | yana_vaskina@mail.ru          |                       |                        |        |
+|                              | Юрий                |                      |                    | Europe/Moscow          | tracker                  |                1002967 |                     | false                    |                                | 2024-12-30                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | yurinikolaevich1995@yandex.ru |                       |                        |        |
+|                              | Юрий                |                      |                    | Europe/Moscow          | tracker                  |                1246117 |                     | false                    |                                | 2025-01-04                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | ivanovich059@gmail.com        |                       |                        |        |
+|                              | Юра                 |                      |                    | Europe/Moscow          | tracker                  |                1002736 |                     | false                    |                                | 2024-12-30                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | ugryzenkova@gmail.com         |                       |                        |        |
+|                              | Юля                 |                      |                    | Europe/Moscow          | tracker                  |                1220186 |                     | false                    |                                | 2025-01-03                  | false                      |                        |                                                       |                                                          |                                                              |                                                            |                                                                 | true                                                       | 9107208000@mail.ru            |                       |                        |        |
+|                              | Юлия                |                      | Соловьева          | Europe/Moscow          | tracker                  |                 131088 | 1988-07-04          | false                    | false                          | 2024-12-12                  | false                      |                  31588 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | senkova@rus-zoloto.com        |           79621999800 |                        |        |
+|                              | Юлия                | Владимировна         | Тимиошенкова       | Europe/Moscow          | tracker                  |                 175917 |                     | false                    | false                          | 2024-12-01                  | false                      |                  43787 |                                                       |                                                          |                                                              |                                                            |                                                                 |                                                            | zaezz@yandex.ru               |           79206637880 |                        |        |
+```
+
+
+## About final data
+> - Total rows: 87696
+
+### Schema
+```
+root
+ |-- names: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- birth_date: string (nullable = true)
+ |-- phones: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- emails: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- actuality: date (nullable = true)
+ |-- raw_metadata: array (nullable = true)
+ |    |-- element: string (containsNull = false)
+ |-- source_entity_id: string (nullable = true)
+
+```
+
+
+### Columns completeness
+
+| Column   | Completeness |
+|----------|--------------|
+| Names | 100.00% |
+| Birth_date | 95.51% |
+| Phones | 99.82% |
+| Emails | 1.84% |
+| Actuality | 99.99% |
+| Raw_metadata | 93.11% |
+| Source_entity_id | 100.00% |
+
+
+
+### Data sample
+```
+| names                                   | birth_date   | phones          | emails   | actuality   | raw_metadata                                       | source_entity_id                                         |
+|:----------------------------------------|:-------------|:----------------|:---------|:------------|:---------------------------------------------------|:---------------------------------------------------------|
+| ['Абдуахатовна Феруза Паттаева']        | 10.08.1975   | ['79207337317'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Железногорск"}'] | dad87aa89eea07d90e6756ea7928685d360c6fbd028837f75f1c1160 |
+| ['Абдулина Ирина Николаевна']           | 25.04.1981   | ['79529680618'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | 96747e09e2ebda82c2fe337df9ab75354a5d4e9f391402961298feaa |
+| ['Абраменков Виктор Викторович']        | 21.06.1982   | ['79529942417'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Галактика"}']    | f4676afda493c1b6b11391d98a5f7f20300c37f81b2d0c6d081d7330 |
+| ['Абросимова Анастасия Евгеньевна']     | 27.12.1996   | ['79510856869'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Курск"}']        | a6d944ef757671b8091ee7ed9d454074d7797d74c8dece47c4b23a02 |
+| ['Авралова Оксана Ивановна']            | 20.05.1968   | ['79169709826'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "ЗУМ"}']          | 518e66f52101a81c58af5969d5487f3791feaf45385264705d4b159f |
+| ['Австриц Дмитрий Владимирович']        | 08.11.1989   | ['79156333632'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Пролетарская"}'] | 3ff56493be7f55381b79be8b74cc7846e67ad3149fad2ba500525cde |
+| ['Агаркова Татьяна Александровна']      | 25.04.1958   | ['79066911122'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Курск"}']        | 3b53c486828acbf3b39882086f37ca0bd35d8ed6e4828ba8bc8048dd |
+| ['Адамов Эдуард Александрович']         | 17.07.2003   | ['79206665614'] |          | 30.12.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | edf3bfcdf17629b83728df5125d2cb70555a97c1a79428fac44d96f9 |
+| ['Адыровна Регина Харченкова']          | 09.08.1992   | ['79102194369'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Курск"}']        | 00d871b7f5d93ad93a7ba7ca2e2b14a590afdfb825b90ed603ecf2c4 |
+| ['Ажигин Максим Константинович']        | 03.06.1986   | ['79065180986'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "ЗУМ"}']          | 70deb40398abbe1bea443006ebab6b2ab1e3c1ef48027d5ef9efce21 |
+| ['Аклевкова Татьяна Вячеславовна']      | 06.08.1994   | ['79996206177'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | 1a343b8e1071f6a8aeaf0160052e2e940037c9077e57052c79b79179 |
+| ['Аксютина Оксана Николаевна']          | 11.01.1978   | ['79102303329'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | bea42f53014f66b26fc8212736add3503c945a5a933c7a26a31e526c |
+| ['Ананькина Алла Сергеевна']            | 25.06.1971   | ['79532787552'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | c49460578ae2496c1652203e2781e54e8b4a85dfe50937ebc104c9b5 |
+| ['Анатольена Светлана Тимирязева']      | 14.05.1969   | ['79107883434'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Галактика"}']    | d4722cf204e8308228489cd7fd054dd7da0904103a5feb22c62bb7b4 |
+| ['Анисова Людмила Николаевна']          |              | ['79066893558'] |          | 29.11.2024  |                                                    | 4bd75434c60f9174edb101f4ed9c9a8684218cc9cc32c11fc76e3511 |
+| ['Анодина Наталья Владимировна']        | 02.05.1987   | ['79107298666'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Ростислав"}']    | 5ff349fbc6df6dde7a8cd42f6b6dd906760d67b00b564a2d413a725d |
+| ['Антипова Наталья Сергеевна']          | 13.03.1988   | ['79158030656'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Брянск"}']       | 5d2b10dfb28789d1ca372cb30a6eb10163d39758c3ef318f9ba42ad1 |
+| ['Анюшина Ксения Дмитриевна']           | 27.02.2001   | ['79532806176'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Дятьково"}']     | 8ba13808d8d3b3e4264793c98443bb063318a21ec81fd22449ae2888 |
+| ['Архипенкова Анастасия Александровна'] | 16.10.1996   | ['79056981201'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Макси"}']        | 0a5efeab7ecbdb6677f614f58c74e2f60086172e7e5143a51e0f84cf |
+| ['Асадчева Наталья Владимировна']       | 04.07.1977   | ['79081224534'] |          | 17.10.2024  | ['{"CustomerCustomFieldsStores": "Курск"}']        | b8e1321ccd50c04a0c73519c7ec377034219af90a0644999aebe92b0 |
+```

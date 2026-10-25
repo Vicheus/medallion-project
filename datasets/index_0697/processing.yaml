@@ -1,0 +1,182 @@
+sourceId: "index_0697"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0697/raw/impulsecrm.ru - @StormBaseAdapter(1)/impulsecrm_ru_full.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+  entities:
+    persons:
+      columns:
+        first_name: "Имя"
+        last_name: "Фамилия"
+        middle_name: "Отчество"
+        birth_date: "Дата рождения"
+        sex: "Пол"
+    address:
+      columns:
+        address: "Адрес"
+    phones:
+      columns:
+        phone: "Телефон"
+    emails:
+      columns:
+        email: "Email"
+    socials:
+      columns:
+        socials: "Соцсеть"
+    actuality:
+        columns:
+          last_visit_date: "Последнее посещение"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    socials:
+      columns:
+        __socials:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "socials"
+                pattern:
+                  lit: "[,\\s]+"
+          filter:
+            fn: "ne"
+            column: "__socials"
+            value:
+              lit: "https://www.facebook.com/profile.php"
+        socials:
+          source:
+            fn: "social_udf"
+            title:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "vk.com/"
+                  value:
+                    lit: "Vk"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "vk.ru/"
+                  value:
+                    lit: "Vk"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "facebook.com/"
+                  value:
+                    lit: "Facebook"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "instagram.com/"
+                  value:
+                    lit: "Instagram"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "max.ru/"
+                  value:
+                    lit: "Max"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "t.me/"
+                  value:
+                    lit: "Telegram"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "endswith"
+                  column: "__socials"
+                  value:
+                    lit: "https"
+                value:
+                  fn: "regexp_replace"
+                  column: "__socials"
+                  pattern:
+                    lit: "https$"
+              otherwise: "__socials"
+          filter: true
+    actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column: "last_visit_date"
+              date_format:
+                lit: "%d.%m.%Y"
+            filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                social_info: "social_info"
+            filter: true
+gold:
+  remain: [ "phones", "emails", "socials" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+        - "sex"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

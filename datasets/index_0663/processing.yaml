@@ -1,0 +1,443 @@
+sourceId: "index_0663"
+
+bronze:
+  read:
+    path: "заказы.csv"
+    options:
+      sep: "|"
+      mode: "PERMISSIVE"
+      multiline: "true"
+    trimValues: true
+    replaceRegexPatrial:
+      C_DATE_CREATE: ".\\d+$"
+      C_DATE_DRIVE_START: ".\\d+$"
+      C_DATE_END: ".\\d+$"
+    replaceWithNone: [ "-", ".", "None", "NULL", "C_DRIVER", "C_NUM_GAI", "C_BASE" ]
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        name: "C_ACC_NAME"
+        client_name: "C_CLIENT_FIO"
+        inn_owner_name: "C_LICENSE_OWNER_NAME"
+    phones:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phone1: "C_PHONE"
+        phone2: "C_PHONE2"
+    documents:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        inn: "C_LICENSE_OWNER_INN"
+    movements:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        addr_from: "C_ADDR0_FULL"
+        addr_to: "C_ADDR1_FULL"
+        addr_to_2: "C_ADDR2_FULL"
+        addr_from_part: "C_ADDRESS_START"
+        addr_to_part: "C_ADDRESS_END"
+        city_start: "C_CITY_START"
+        city_end: "C_CITY_END"
+    relations:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        driver_name: "C_DRIVER"
+        car_num: "C_NUM_GAI"
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        cancel_category: "C_TEXT_CANCEL_CATEGORY"
+        order_type: "C_REM"
+        tariff: "C_TARIFF"
+        order_source: "C_TYPE_SOURCE"
+        acc_id: "ID_ACC"
+        base: "C_BASE"
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        date_create: "C_DATE_CREATE"
+        date_drive_start: "C_DATE_DRIVE_START"
+        date_drive_end: "C_DATE_END"
+silver:
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __name:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "name"
+                  - "client_name"
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "__name"
+                  value:
+                    lit: "^(ооо|ао|р бургерная|на первом этаже|нао|зао) "
+              value:
+                fn: "regexp_replace"
+                column: "__name"
+                pattern:
+                  lit: "^(ИП|79038972449|Жукова 8а ИП) "
+          filter: true
+    phones:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "phone_udf"
+                    column: "phone1"
+                  - fn: "phone_udf"
+                    column: "phone2"
+          filter: true
+    address:
+      entities: "raw_metadata"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "regexp_extract"
+              column: "base"
+              pattern:
+                lit: "^Ф?\\s?(Максим|Поехали|Taxsee|TUDA)\\s?(.*)"
+              index:
+                lit: 2
+          filter: true
+    documents:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      entities:
+        - "documents"
+        - "persons"
+      columns:
+        __acc_name:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "name"
+                  value:
+                    lit: "^(ооо|ао|р бургерная|на первом этаже|нао|зао) "
+              value:
+                fn: "regexp_replace"
+                column: "name"
+                pattern:
+                  lit: "^(ИП|79038972449|Жукова 8а ИП) "
+        __inn_name:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "inn_owner_name"
+                  value:
+                    lit: "^(ооо|ао|р бургерная|на первом этаже|нао|зао) "
+              value:
+                fn: "regexp_replace"
+                column: "inn_owner_name"
+                pattern:
+                  lit: "^(ИП|79038972449|Жукова 8а ИП) "
+        documents:
+          source:
+            fn: "case"
+            condition:
+              fn: "and"
+              columns:
+                - fn: "rlike"
+                  column: "inn"
+                  value:
+                    lit: "\\d{11,12}"
+                - fn: "eq"
+                  column: "__acc_name"
+                  value: "__inn_name"
+            value:
+              fn: "document_udf"
+              type:
+                lit: "инн"
+              serial: "inn"
+          filter: true
+    relations:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __driver:
+          source:
+            fn: "name_udf"
+            column: "driver_name"
+        relations:
+          source:
+            fn: "case"
+            condition:
+              fn: "and"
+              columns:
+                - fn: "isNotNull"
+                  column: "__driver"
+                - fn: "isNotNull"
+                  column: "car_num"
+                - fn: "between"
+                  column:
+                    fn: "length"
+                    column: "car_num"
+                  lower:
+                    lit: 4
+                  upper:
+                    lit: 12
+            value:
+              fn: "relations_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "__driver"
+                  - "car_num"
+                  - lit: "Водитель"
+          filter: true
+    movements:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      entities:
+        - "movements"
+        - "actuality"
+      columns:
+        __addr_from:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "addr_from"
+              - fn: "concat"
+                columns:
+                  - lit: "("
+                  - "addr_from_part"
+                  - lit: ")"
+        __addr_to:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "addr_to"
+              - fn: "concat"
+                columns:
+                  - lit: "("
+                  - fn: "when"
+                    cases:
+                      condition:
+                        fn: "contains"
+                        column: "addr_to_part"
+                        value:
+                          lit: " -> "
+                      value:
+                        fn: "regexp_extract"
+                        column: "addr_to_part"
+                        pattern:
+                          lit: "^(.+) -> .*$"
+                        index:
+                          lit: 1
+                    otherwise: "addr_to_part"
+                  - lit: ")"
+        __addr_to_2:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "addr_to_2"
+              - fn: "concat"
+                columns:
+                  - lit: "("
+                  - fn: "case"
+                    condition:
+                      fn: "contains"
+                      column: "addr_to_part"
+                      value:
+                        lit: " -> "
+                    value:
+                      fn: "regexp_extract"
+                      column: "addr_to_part"
+                      pattern:
+                        lit: " -> (.+)$"
+                      index:
+                        lit: 1
+                  - lit: ")"
+        movements:
+          source:
+            fn: "movement_udf"
+            type:
+              lit: 1
+            ticket_order_datetime:
+              fn: "movement_datetime_udf"
+              column: "date_drive_start"
+              date_format:
+                lit: "%Y-%m-%dT%H:%M:%S"
+            from_datetime:
+              fn: "movement_datetime_udf"
+              column: "date_drive_start"
+              date_format:
+                lit: "%Y-%m-%dT%H:%M:%S"
+            from_city:
+              fn: "address_udf"
+              column: "city_start"
+            to_datetime:
+              fn: "movement_datetime_udf"
+              column: "date_drive_end"
+              date_format:
+                lit: "%Y-%m-%dT%H:%M:%S"
+            to_city:
+              fn: "address_udf"
+              column: "city_end"
+            comment:
+              fn: "base_raw_validation_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "isNotNull_ne"
+                      column: "__addr_from"
+                    value:
+                      lit: "Начало:"
+                  - "__addr_from"
+                  - fn: "case"
+                    condition:
+                      fn: "isNotNull_ne"
+                      column: "__addr_to"
+                    value:
+                      fn: "when"
+                      cases:
+                        condition:
+                          fn: "isNotNull_ne"
+                          column: "__addr_to_2"
+                        value:
+                          lit: "Дополнительная высадка:"
+                      otherwise:
+                        lit: "Конец:"
+                  - "__addr_to"
+                  - fn: "case"
+                    condition:
+                      fn: "isNotNull_ne"
+                      column: "__addr_to_2"
+                    value:
+                      lit: "Конец:"
+                  - "__addr_to_2"
+          filter: true
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              C_BASE: "base"
+              C_TEXT_CANCEL_CATEGORY: "cancel_category"
+              C_REM:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "rlike"
+                    column: "order_type"
+                    value:
+                      lit: "САМЫЙ НИ3КИЙ ПР0ЦЕНТ"
+                value: "order_type"
+              C_TARIFF:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "rlike"
+                    column: "tariff"
+                    value:
+                      lit: "НЕ ВЫБИРАТЬ|Отменен"
+                value: "tariff"
+              C_TYPE_SOURCE: "order_source"
+              ID_ACC: "acc_id"
+          filter: true
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "date_create"
+              - "date_drive_start"
+              - "date_drive_end"
+            date_format:
+              lit: "%Y-%m-%dT%H:%M:%S"
+          filter: true
+gold:
+  io:
+    write:
+      type: "coalesce_size"
+      count: 1024
+  remain: [ "documents", "movements", "phones" ]

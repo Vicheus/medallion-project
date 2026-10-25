@@ -1,0 +1,143 @@
+sourceId: "index_0674"
+
+bronze:
+  read:
+    path: "аvtоvоkzаІу.ru - @StormBaseAdapter.csv"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        order_id: "order_id"
+        name: "passengers"
+    movements:
+      columns:
+        from_city: "dep_city"
+        from_code: "dep_station"
+        to_city: "arr_city"
+        to_code: "arr_station"
+        transport_company_name: "carrier"
+        ticket_number: "ticket_numbers"
+    raw_metadata:
+      columns:
+        dep_date: "dep_date"
+        dep_time: "dep_time"
+        arr_date: "arr_date"
+        arr_time: "arr_time"
+        statuses: "statuses"
+silver:
+  entities:
+    persons:
+      columns:
+        order_id:
+          source: "order_id"
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "regexp_replace"
+              column:
+                fn: "regexp_replace"
+                column:
+                  fn: "regexp_replace"
+                  column: "name"
+                  pattern:
+                    lit: "[0-9]"
+                pattern:
+                  lit: "([a-zA-Zа-яёА-ЯЁ]{4,})\\."
+              pattern:
+                lit: "\\s+\\.\\s*"
+          filter: true
+    movements:
+      columns:
+        movements:
+          source:
+            fn: "movement_udf"
+            from_city:
+              fn: "address_udf"
+              column: "from_city"
+            from_code:
+              fn: "base_raw_validation_udf"
+              column: "from_code"
+            to_city:
+              fn: "address_udf"
+              column: "to_city"
+            to_code:
+              fn: "base_raw_validation_udf"
+              column: "to_code"
+            transport_company_name: "transport_company_name"
+            ticket_number:
+              fn: "base_raw_validation_udf"
+              column: "ticket_number"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              dep_date:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "dep_date"
+                  value:
+                    lit: "^[0-3]\\d/\\d{2}$"
+                value: "dep_date"
+              dep_time:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "dep_time"
+                  value:
+                    lit: "^[0-2]\\d:\\d{2}$"
+                value: "dep_time"
+              arr_date:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "arr_date"
+                  value:
+                    lit: "^[0-3]\\d/\\d{2}$"
+                value: "arr_date"
+              arr_time:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "arr_time"
+                  value:
+                    lit: "^[0-2]\\d:\\d{2}$"
+                value: "arr_time"
+              statuses:
+                fn: "base_raw_validation_udf"
+                column:
+                  fn: "regexp_replace"
+                  column: "statuses"
+                  pattern:
+                    lit: "\\[.+$"
+          filter: true
+gold:
+  io:
+    write:
+      type: "coalesce_size"
+      count: 1536
+  transformations:
+    - op: "relations"
+      ids: "order_id"
+      columns:
+        - fn: "try_element_at"
+          column: "names"
+          value:
+            lit: 1
+        - fn: "getField"
+          column:
+            fn: "try_element_at"
+            column: "movements"
+            value:
+              lit: 1
+          value:
+            lit: "ticket_number"
+        - lit: "Привязаны к одному заказу"
+    - op: "dropColumns"
+      columns: "order_id"
+    - op: "aggGroupBy"
+  remain: [ "movements" ]

@@ -1,0 +1,248 @@
+sourceId: "index_0662"
+
+bronze:
+  read:
+    path: "телефоны.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+      mode: "PERMISSIVE"
+    trimValues: true
+    replaceWithNone: [ "-", "Нет", "нет", "Unknown", "None" ]
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        name: "Клиент (ФИО)"
+    phones:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phone: "Телефон"
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        region: "Регион"
+        os: "Операционная система"
+        black_listed: "В чёрном списке"
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        date_create: "Дата создания"
+        date_last_order: "Время последнего заказа"
+        date_app_installed: "Дата установки приложения"
+    common:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        base: "База"
+silver:
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __name:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "name"
+                pattern:
+                  lit: ";"
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "isin"
+                  column:
+                    fn: "lower"
+                    column: "name"
+                  values:
+                    - lit: "постоянный клиент"
+                    - lit: "фамилия имя отчество"
+                    - lit: "клиент мужчина"
+                    - lit: "клиент"
+                    - lit: "клиентка"
+                    - lit: "cчет клиента"
+                    - lit: "клиентская служба"
+              value:
+                fn: "regexp_replace"
+                column: "__name"
+                pattern:
+                  lit: "^\\s*\\d+\\s*|^[Кк]лиент |^[Кк]лиентка |^[Хх]{2,} | [Хх]{2,}$|[Хх]{3,}|Ип |[Нн]е [Сс]кажу|[Жж]енщина|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}|\\s*\\d+\\s*$"
+          filter: true
+    phones:
+      entities:
+        - "phones"
+        - "persons"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "phone_udf"
+                    column: "phone"
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "name"
+                      value:
+                        lit: "\\d{11}"
+                    value:
+                      fn: "phone_udf"
+                      column:
+                        fn: "regexp_extract"
+                        column: "name"
+                        pattern:
+                          lit: "(\\d{11})"
+                        index:
+                          lit: 1
+          filter: true
+    emails:
+      entities: "persons"
+      columns:
+        emails:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "name"
+              value:
+                lit: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+            value:
+              fn: "email_udf"
+              column:
+                fn: "regexp_extract"
+                column: "name"
+                pattern:
+                  lit: "([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})"
+                index:
+                  lit: 1
+          filter: true
+    address:
+      entities: "common"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "regexp_extract"
+              column: "base"
+              pattern:
+                lit: "^Ф?\\s?(Максим|Поехали|Taxsee|TUDA)\\s?(.*)"
+              index:
+                lit: 2
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+        - "common"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              База: "base"
+              Регион:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "region"
+                  value:
+                    lit: "^[a-z0-9_]+$"
+                value: "region"
+              Операционная система:
+                fn: "case"
+                condition:
+                  fn: "isin"
+                  column: "os"
+                  values:
+                    - lit: "Android"
+                    - lit: "iOS"
+                    - lit: "WEB"
+                    - lit: "Windows"
+                value: "os"
+              В чёрном списке:
+                fn: "case"
+                condition:
+                  fn: "eq"
+                  column: "black_listed"
+                  value:
+                    lit: "Да"
+                value: "black_listed"
+          filter: true
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - fn: "regexp_replace"
+                column: "date_create"
+                pattern:
+                  lit: "\\.\\d{7}$"
+              - fn: "regexp_replace"
+                column: "date_last_order"
+                pattern:
+                  lit: "\\.\\d{7}$"
+              - fn: "regexp_replace"
+                column: "date_app_installed"
+                pattern:
+                  lit: "\\.\\d{7}$"
+            date_format:
+              lit: "%Y-%m-%dT%H:%M:%S"
+          filter: true
+gold:
+  transformations:
+    op: "groupBy"
+    columns:
+      - "names"
+      - "phones"
+    positive:
+      fn: "isNotNull"
+      column: "phones"
+  remain: [ "phones", "emails" ]

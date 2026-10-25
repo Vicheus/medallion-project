@@ -1,0 +1,46 @@
+sourceId: "index_0710"
+
+bronze:
+  read:
+    path: "Войсковая часть 78018.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "Фамилия, имя, отчество"
+        birth_date: "Дата рождения"
+    forces:
+      columns:
+        tag_number: "Личный номер"
+        rank: "Воинское звание"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%m/%d/%Y"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank: "rank"
+            unit_code:
+              lit: "78018"
+            unit_name:
+              lit: "11 А ВВС и ПВО 303 сад 18 шап"
+          filter: true
+gold:
+  remain: [ "forces" ]

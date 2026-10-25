@@ -1,0 +1,34 @@
+sourceId: "index_0686"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0686/raw/azbyka_ru_preprocessed.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        name: "name"
+    emails:
+      columns:
+        email: "email"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+gold:
+  remain: [ "emails" ]
+  

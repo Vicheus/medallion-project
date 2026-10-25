@@ -1,0 +1,186 @@
+sourceId: "index_0721"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+      multiline: "true"
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    phones:
+      columns:
+        phone1: "phone"
+        phone2: "metadata.additional_phones"
+    forces:
+      columns:
+        position: "metadata.work_position"
+    common:
+      columns:
+        unit_value: "metadata.work_place"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "name"
+                  value:
+                    lit: "\\d"
+                value:
+                  fn: "regexp_replace"
+                  column: "name"
+                  pattern:
+                    lit: "\\d"
+              otherwise: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    phones:
+      entities:
+        - "phones"
+        - "persons"
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "phone_udf"
+                    column:
+                      fn: "when"
+                      cases:
+                        condition:
+                          fn: "rlike"
+                          column: "phone1"
+                          value:
+                            lit: "^\\+\\d{11}.+"
+                        value:
+                          fn: "regexp_extract"
+                          column: "phone1"
+                          pattern:
+                            lit: "^\\+(\\d{11})"
+                          index:
+                            lit: 1
+                      otherwise: "phone1"
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "phone1"
+                      value:
+                        lit: "^\\+\\d{11}.+"
+                    value:
+                      fn: "phone_udf"
+                      column:
+                        fn: "regexp_extract"
+                        column: "phone1"
+                        pattern:
+                          lit: "^\\+\\d{11}(.+)"
+                        index:
+                          lit: 1
+                  - fn: "phone_udf"
+                    column: "phone2"
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "name"
+                      value:
+                        lit: "\\d"
+                    value:
+                      fn: "phone_udf"
+                      column: "name"
+          filter: true
+    address:
+      entities: "common"
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "regexp_extract"
+              column: "unit_value"
+              pattern:
+                lit: ".*?(\\d{6}.*)"
+              index:
+                lit: 1
+          filter: true
+    forces:
+      entities:
+        - "forces"
+        - "common"
+      columns:
+        __unit_name:
+          source:
+            fn: "regexp_extract"
+            column: "unit_value"
+            pattern:
+              lit: "(.*?)(?=\\d{6}|$)"
+            index:
+              lit: 1
+        __unit_code:
+          source:
+            fn: "regexp_extract"
+            column: "unit_value"
+            pattern:
+              lit: "(в/ч\\s*\\d{5})"
+            index:
+              lit: 1
+        __rank:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "position"
+              value:
+                lit: "^(ст\\. ?с\\-т|ст\\. ?пр\\-к|ст\\. ?л\\-т|ст\\-на|с\\-т|с\\-на|ряд\\.|пр\\-к|п/п\\-к|п\\-к|мл\\. ?с\\-т|м\\-р|л\\-т|к\\-н)"
+            value:
+              fn: "regexp_extract"
+              column: "position"
+              pattern:
+                lit: "^(ст\\. ?с\\-т|ст\\. ?пр\\-к|ст\\. ?л\\-т|ст\\-на|с\\-т|с\\-на|ряд\\.|пр\\-к|п/п\\-к|п\\-к|мл\\. ?с\\-т|м\\-р|л\\-т|к\\-н)"
+              index:
+                lit: 1
+        __position:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "isNotNull"
+                column: "__rank"
+              value:
+                fn: "regexp_replace"
+                column: "position"
+                pattern:
+                  fn: "concat"
+                  columns:
+                    - lit: "^"
+                    - "__rank"
+            otherwise: "position"
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "__rank"
+            position: "__position"
+            unit_code: "__unit_code"
+            unit_name: "__unit_name"
+          filter: true
+gold:
+  remain: [ "phones", "forces" ]

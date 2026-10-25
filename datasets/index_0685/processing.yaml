@@ -1,0 +1,59 @@
+sourceId: "index_0685"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0685/raw/fierashop_ru_03_06_2026.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        first_name: "name"
+        last_name: "surname"
+        middle_name: "patronymic"
+    phones:
+      columns:
+        phone: "phone_number"
+    emails:
+      columns:
+        email: "email"
+    address:
+      columns:
+        city: "city"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "city"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  

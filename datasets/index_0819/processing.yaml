@@ -1,0 +1,41 @@
+sourceId: "index_0819"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0819/raw/vinum_users.csv"
+    options:
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "first_name"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+gold:
+  remain: [ "phones", "emails" ]
+  

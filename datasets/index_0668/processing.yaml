@@ -1,0 +1,75 @@
+sourceId: "index_0668"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/index_0668/raw/mobchasti_ru_22_7k_09_02_2024.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        firstname: "name"
+        lastname: "surname"
+        middlename: "patronymic"
+        birth_date: "birth_date"
+    address:
+      columns:
+        address: "address"
+    phones:
+      columns:
+        phone: "phone_number"
+    emails:
+      columns:
+        email: "email"
+    ips:
+      columns:
+        ip_address: "ip"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "lastname"
+              - "firstname"
+              - "middlename"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+    ips:
+      columns:
+        ips:
+          source:
+            fn: "ip_udf"
+            ip: "ip_address"
+          filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

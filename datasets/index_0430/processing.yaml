@@ -1,0 +1,94 @@
+sourceId: "index_0430"
+
+bronze:
+  read:
+    path: "/media/user/SAMSUNG/Databases/index_0430/raw/Wagner Group Full.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "ФИО"  
+        birth_date: "Дата рождения"
+        death_date: "Дата перехода в 200"
+    forces:
+      columns:
+        unit_name: "ШО"
+        callsign: "Позывной"
+        tag_number: "Личный номер"
+        status: "Статус"
+        date_start: "Дата прибытия"
+    raw_metadata:
+        columns:
+          contract_resign_date: "Дата продления контракта"
+          additional_info: "Примечания"
+          sbz_date: "Дата начала СБЗ"
+          status: "Статус"
+          date_start: "Дата прибытия"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%m/%d/%Y"
+        death_date:
+          source:
+            fn: "death_date_udf"
+            column: "death_date"
+            birth_date: "birth_date"
+            date_format:
+              lit: "%m/%d/%Y"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            callsign: "callsign"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "ЧВК Вагнер"
+                - "unit_name"
+            tag_number: "tag_number"
+            category:
+              fn: "case"
+              condition:
+                fn: "eq"
+                column:
+                  fn: "lower"
+                  column: "status"
+                value:
+                  lit: "контракт продлён"
+              value: 
+                  lit: "контракт" 
+            date_start: "date_start"
+            date_format:
+              lit: "%m/%d/%Y"
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Примечания: "additional_info"
+              Дата переподписания контракта: "contract_resign_date"
+              Статус: "status"
+              Дата начала СБЗ: "sbz_date"
+              Дата прибытия: "date_start"
+          filter: true
+gold:
+  remain: [ "forces" ]

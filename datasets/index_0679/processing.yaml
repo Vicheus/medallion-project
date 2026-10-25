@@ -1,0 +1,105 @@
+sourceId: "index_0679"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0679/raw/mіrароІіs.ru - @StormBaseAdapter/mirapolis.ru 07.06.2026.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        sex: "Пол"
+        birth_date: "Дата рождения"
+    phones:
+      columns:
+        phone: "Телефон"
+    emails:
+      columns:
+        email: "Email"
+    documents:
+      columns:
+        inn: "ИНН"
+    accounts:
+      columns:
+        login: "Логин"
+        password: "Пароль"
+    actuality:
+      columns:
+        data: "Начало работы"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "document_udf"
+            type:
+              lit: "инн"
+            serial: "inn"
+      filter: true
+    accounts:
+      columns:
+        accounts:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "login"
+                  - fn: "isNotNull"
+                    column: "password"
+              value:
+                fn: "struct"
+                values:
+                    title:
+                      lit: "Mirapolis – автоматизация HR"
+                    link:
+                      lit: "https://mirapolis.ru"
+                    login: "login"
+                    password: "password"
+      filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "data"
+            date_format:
+                lit: "%Y-%m-%d"
+          filter: true
+gold:
+  remain: [ "phones", "emails", "documents" ]
+  

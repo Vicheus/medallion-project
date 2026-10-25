@@ -1,0 +1,140 @@
+sourceId: "index_0737"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: [ "-", "(empty)" ]
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    forces:
+      columns:
+        tag_number: "metadata.military_id"
+        rank: "metadata.military_rank"
+        position: "metadata.military_position"
+        unit_value: "metadata.military_unit"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "tag_number"
+                  value:
+                    lit: "^MT-"
+                value:
+                  fn: "regexp_replace"
+                  column: "tag_number"
+                  pattern:
+                    lit: "^MT"
+                  replacement:
+                    lit: "МТ"
+              otherwise: "tag_number"
+            rank: "rank"
+            position:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "startswith"
+                  column:
+                    fn: "lower"
+                    column: "position"
+                  value:
+                    lit: "интеграция"
+              value: "position"
+            unit_code:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "rlike"
+                    column: "unit_value"
+                    value:
+                      lit: "\\d{4,}"
+                  - fn: "not"
+                    column:
+                      fn: "rlike"
+                      column: "unit_value"
+                      value:
+                        lit: "^(1409|1586) В"
+              value:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "rlike"
+                    column: "unit_value"
+                    value:
+                      lit: " (Калининг|Калинин|Судак|Черняхов|БС Смо|БС Ала|БС Во|УС Ст|УС Цер|УС Иск|УС Блокн|УС Вул|УС Гар|УС Зим|УС Реп|СФПС)$"
+                  value:
+                    fn: "regexp_replace"
+                    column: "unit_value"
+                    pattern:
+                      lit: " (Калининг|Калинин|Судак|Черняхов|БС Смо|БС Ала|БС Во|УС Ст|УС Цер|УС Иск|УС Блокн|УС Вул|УС Гар|УС Зим|УС Реп|СФПС)$"
+                otherwise: "unit_value"
+            unit_name:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "unit_value"
+                      value:
+                        lit: "\\d{4,}"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column: "unit_value"
+                        value:
+                          lit: "^(1409|1586) В"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column: "unit_value"
+                        value:
+                          lit: " (Калининг|Калинин|Судак|Черняхов|БС Смо|БС Ала|БС Во|УС Ст|УС Цер|УС Иск|УС Блокн|УС Вул|УС Гар|УС Зим|УС Реп|СФПС)$"
+              value:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "rlike"
+                    column: "unit_value"
+                    value:
+                      lit: " (Калининг|Калинин|Судак|Черняхов|БС Смо|БС Ала|БС Во|УС Ст|УС Цер|УС Иск|УС Блокн|УС Вул|УС Гар|УС Зим|УС Реп|СФПС)$"
+                  value:
+                    fn: "regexp_extract"
+                    column: "unit_value"
+                    pattern:
+                      lit: " (Калининг|Калинин|Судак|Черняхов|БС Смо|БС Ала|БС Во|УС Ст|УС Цер|УС Иск|УС Блокн|УС Вул|УС Гар|УС Зим|УС Реп|СФПС)$"
+                    index:
+                      lit: 1
+                otherwise: "unit_value"
+          filter: true
+gold:
+  remain: [ "forces" ]

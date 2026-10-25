@@ -1,0 +1,72 @@
+sourceId: "index_0713"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/forces/index_0713/raw/Плен РФ ВЧ 31134.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "name"
+        birth_date: "birth_date"
+        birth_place: "birth_place"
+    address:
+      columns:
+        address: "address"
+    forces:
+      columns:
+        unit_name: "unit_name"
+        unit_code: "unit_code"
+        rank: "rank"
+        position: "position"
+    educations:
+        columns:
+          education: "education"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column: "birth_place"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    educations:
+      columns:
+        educations:
+          source:
+            fn: "education_udf"
+            level: "education"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            unit_code: "unit_code"
+            unit_name: "unit_name"
+            position: "position"
+          filter: true
+gold:
+  remain: [ "forces" ]

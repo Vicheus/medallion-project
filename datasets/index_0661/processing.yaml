@@ -1,0 +1,394 @@
+sourceId: "index_0661"
+
+bronze:
+  read:
+    path: "автомобили справочник.csv"
+    options:
+      sep: "|"
+      mode: "PERMISSIVE"
+      multiline: "true"
+    trimValues: true
+    replaceRegexPatrial:
+      C_DATE_START: "T\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+      C_DATE_CHECK: "T\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+    replaceWithNone: [ "-", "None", "NULL", "C_ASSIGN_DRIVER", "C_DRIVER", "C_STS", "C_NUM_GAI", "C_MARK", "C_YEAR", "C_COLOR", "C_AUTO_CLASS", "C_BASE", "C_CLUR", "C_INFO", "C_FIRE_DISPL" ]
+    aliases:
+      C_ASSIGN_DRIVER: "C_DRIVER"
+    append:
+      read:
+        path: "заказы.csv"
+        options:
+          sep: "|"
+          mode: "PERMISSIVE"
+          multiline: "true"
+        trimValues: true
+        replaceRegexPatrial:
+          C_DATE_DRIVER_INPLACE: "T\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+          C_DATE_DRIVE_START: "T\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+          C_DATE_END: "T\\d{2}:\\d{2}:\\d{2}\\.\\d+$"
+        replaceWithNone: [ "-", "None", "NULL", "C_ASSIGN_DRIVER", "C_DRIVER", "C_STS", "C_NUM_GAI", "C_MARK", "C_YEAR", "C_COLOR", "C_AUTO_CLASS", "C_BASE", "C_CLUR", "C_INFO", "C_FIRE_DISPL" ]
+      ids: [ "C_NUM_GAI", "C_DRIVER", "C_BASE" ]
+      type: "full"
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        name: "C_DRIVER"
+    vehicles:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        model: "C_MARK"
+        year: "C_YEAR"
+        color: "C_COLOR"
+        number: "C_NUM_GAI"
+        vehicle: "C_AUTO"
+    works:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        license_owner_name: "C_LICENSE_OWNER_NAME"
+        license_owner_inn: "C_LICENSE_OWNER_INN"
+    raw_metadata:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        clur: "C_CLUR"
+        info: "C_INFO"
+        serial_sts: "C_STS"
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        date_start: "C_DATE_START"
+        date_check: "C_DATE_CHECK"
+        date_driver_inplace: "C_DATE_DRIVER_INPLACE"
+        date_drive_start: "C_DATE_DRIVE_START"
+        date_drive_end: "C_DATE_END"
+    common:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        base: "C_BASE"
+        auto_class: "C_AUTO_CLASS"
+silver:
+  entities:
+    persons:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __name:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "name"
+                pattern:
+                  lit: ";"
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "startswith"
+                  column: "__name"
+                  value:
+                    lit: "ИП "
+                value:
+                  fn: "regexp_replace"
+                  column: "__name"
+                  pattern:
+                    lit: "^ИП "
+              otherwise: "__name"
+          filter: true
+    address:
+      entities: "common"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "regexp_extract"
+              column: "base"
+              pattern:
+                lit: "^Ф?\\s?(Максим|Поехали|Taxsee|TUDA)\\s?(.*)"
+              index:
+                lit: 2
+          filter: true
+    vehicles:
+      entities:
+        - "vehicles"
+        - "common"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        vehicles:
+          source:
+            fn: "vehicle_udf"
+            type:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "eq"
+                    column: "auto_class"
+                    value:
+                      lit: "Автобусы"
+                  value:
+                    lit: 3
+                - condition:
+                    fn: "eq"
+                    column: "auto_class"
+                    value:
+                      lit: "Мотоциклы"
+                  value:
+                    lit: 10
+                - condition:
+                    fn: "eq"
+                    column: "auto_class"
+                    value:
+                      lit: "Яхты"
+                  value:
+                    lit: 5
+              otherwise:
+                lit: 1
+            model:
+              fn: "coalesce"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "ne"
+                    column:
+                      fn: "lower"
+                      column: "model"
+                    value:
+                      lit: "без автомобиля"
+                  value: "model"
+                - fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "or"
+                      columns:
+                        - fn: "isNull"
+                          column: "vehicle"
+                        - fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "vehicle"
+                          value:
+                            lit: "без автомобиля"
+                  value:
+                    fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "vehicle"
+                      value:
+                        lit: "^.*?\\s+[a-zA-Zа-яёА-ЯЁ-]+\\s+\\d+$"
+                    value:
+                      fn: "regexp_extract"
+                      column: "vehicle"
+                      pattern:
+                        lit: "^(.*?)\\s+[a-zA-Zа-яёА-ЯЁ-]+\\s+\\d+$"
+                      index:
+                        lit: 1
+            year:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "year"
+                value:
+                  lit: "^\\d{4}$"
+              value:
+                fn: "cast"
+                column: "year"
+                type:
+                  lit: "integer"
+            color:
+              fn: "coalesce"
+              columns:
+                - "color"
+                - fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "vehicle"
+                    value:
+                      lit: "^.*?\\s+[a-zA-Zа-яёА-ЯЁ-]+\\s+\\d+$"
+                  value:
+                    fn: "regexp_extract"
+                    column: "vehicle"
+                    pattern:
+                      lit: "^.*?\\s+([a-zA-Zа-яёА-ЯЁ-]+)\\s+\\d+$"
+                    index:
+                      lit: 1
+            number: "number"
+          filter: true
+    works:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        works:
+          source:
+            fn: "work_udf"
+            company: "license_owner_name"
+            company_ru_inn: "license_owner_inn"
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+        - "vehicles"
+        - "works"
+        - "common"
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        __vehicle:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "vehicle"
+              value:
+                lit: "^.*?\\s+[a-zA-Zа-яёА-ЯЁ-]+\\s+\\d+$"
+            value:
+              fn: "regexp_extract"
+              column: "vehicle"
+              pattern:
+                lit: "^(.*?\\s+[a-zA-Zа-яёА-ЯЁ-]+)\\s+\\d+$"
+              index:
+                lit: 1
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              C_STS: "serial_sts"
+              C_LICENSE_OWNER_NAME:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "license_owner_name"
+                  value:
+                    lit: "\\b(ооо|ип|ао|зао|уо)\\b"
+                value: "license_owner_name"
+              C_LICENSE_OWNER_INN:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "license_owner_inn"
+                  value:
+                    lit: "^\\d{10,12}$"
+                value: "license_owner_inn"
+              C_AUTO:
+                fn: "case"
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "isNotNull"
+                      column: "model"
+                    - fn: "isNotNull"
+                      column: "__vehicle"
+                    - fn: "ne"
+                      column:
+                        fn: "concat_ws"
+                        columns:
+                          - "model"
+                          - "color"
+                      value: "__vehicle"
+                value: "__vehicle"
+              C_AUTO_CLASS: "auto_class"
+              C_BASE: "base"
+              C_CLUR: "clur"
+              C_INFO:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "info"
+                  value:
+                    lit: "\\d{4}|ип |ооо"
+                value: "info"
+          filter: true
+    actuality:
+      io:
+        write:
+          type: "coalesce_size"
+          count: 768
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "date_start"
+              - "date_check"
+              - "date_driver_inplace"
+              - "date_drive_start"
+              - "date_drive_end"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+gold:
+  ignoreHashError: true
+  transformations:
+    - op: "withColumn"
+      column: "names"
+      function:
+        fn: "explode"
+        column: "names"
+    - op: "withColumn"
+      column: "address"
+      function:
+        fn: "explode"
+        column: "address"
+    - op: "withColumn"
+      column: "names"
+      function:
+        fn: "array"
+        columns:
+          - "names"
+    - op: "withColumn"
+      column: "address"
+      function:
+        fn: "array"
+        columns:
+          - "address"
+    - op: "groupBy"
+      columns:
+        - "names"
+        - "vehicles"
+        - "works"
+        - "address"
+      positive:
+        fn: "isNotNull"
+        column: "vehicles"
+  remain: [ "vehicles", "works" ]

@@ -1,0 +1,101 @@
+sourceId: "index_0680"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0680/raw/careerspace.app.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    address:
+      columns:
+        region: "Регион"
+    phones:
+      columns:
+        phone: "Телефон"
+    emails:
+      columns:
+        email: "Почта"
+    raw_metadata:
+        columns:
+          asked_payment: "Желаемая зарплата (р.)"
+          schedule: "График работы"
+          asked_position: "Желаемая должность"
+          asked_timing: "Желаемая занятость"
+          education: "Образование"
+          education_end_date: "Год окончания образования"
+    actuality:
+      columns:
+        record_date: "Дата публикации"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "region"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                asked_payment: "asked_payment"
+                schedule: "schedule"
+                asked_position: "asked_position"
+                asked_timing: "asked_timing"
+                education: "education"
+                education_end_date: "education_end_date"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "record_date"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

@@ -1,0 +1,635 @@
+sourceId: "index_0692"
+countryCode: "BY"
+
+bronze:
+  - id: "people"
+    read:
+      path: "Fun&Sun/roomdesc/people_202606182008.csv"
+      options:
+        mode: "PERMISSIVE"
+        multiline: "true"
+      trimValues: true
+      replaceRegexPatrial:
+        born: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        pissue: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        pvalid: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        name_old: "(\\b\\[?([Бб][Ее][Зз] ?[Ии][Мм][Ее][Нн][Ииb]+|[Пп]+[Оо]+[Зз]+[Жж]+[Ее]+|([Бб][Ее][Зз]|[Нн][Ее][Тт]) ?[Фф][Аа][Мм][Ии][Лл][Ии][Ии] ?[Бб][еЕ][Зз] ?[Ии][Мм][Ее][Нн][Ииb]|non? ?name*n?( ?non? ?name*n?)*|ekskursiia turist|excursion tourist|tourist excursion|transfer tourist)\\]?\\b|^([Тт]естфамил|[Тт]естоваяфамили|[Ээ]кскурсия |[Тт]рансфер [Тт]ур|[Тт]есттурист|[Тт]урист ?[Тт]урист|[mn]*[mnao]*[mnaoh]* ?n+a+m+e|familiya).*)"
+        original_name: "(\\b\\[?([Бб][Ее][Зз] ?[Ии][Мм][Ее][Нн][Ииb]+|[Пп]+[Оо]+[Зз]+[Жж]+[Ее]+|([Бб][Ее][Зз]|[Нн][Ее][Тт]) ?[Фф][Аа][Мм][Ии][Лл][Ии][Ии] ?[Бб][еЕ][Зз] ?[Ии][Мм][Ее][Нн][Ииb]|non? ?name*n?( ?non? ?name*n?)*|ekskursiia turist|excursion tourist|tourist excursion|transfer tourist)\\]?\\b|^([Тт]естфамил|[Тт]естоваяфамили|[Ээ]кскурсия |[Тт]рансфер [Тт]ур|[Тт]есттурист|[Тт]урист ?[Тт]урист|[mn]*[mnao]*[mnaoh]* ?n+a+m+e|familiya).*)"
+        name: "(\\b\\[?([Бб][Ее][Зз] ?[Ии][Мм][Ее][Нн][Ииb]+|[Пп]+[Оо]+[Зз]+[Жж]+[Ее]+|([Бб][Ее][Зз]|[Нн][Ее][Тт]) ?[Фф][Аа][Мм][Ии][Лл][Ии][Ии] ?[Бб][еЕ][Зз] ?[Ии][Мм][Ее][Нн][Ииb]|non? ?name*n?( ?non? ?name*n?)*|ekskursiia turist|excursion tourist|tourist excursion|transfer tourist)\\]?\\b|^([Тт]естфамил|[Тт]естоваяфамили|[Ээ]кскурсия |[Тт]рансфер [Тт]ур|[Тт]есттурист|[Тт]урист ?[Тт]урист|[mn]*[mnao]*[mnaoh]* ?n+a+m+e|familiya).*)"
+        email: "^(bron@onlinetours\\.travel|charteravia@city\\.travel|onlinebooking@kaztour\\.kz|touroperators@travelata\\.ru|avia@kaspi\\.kz|manager@level\\.travel|tours@kaspi\\.kz|pinkinfo@pinkelephant\\.ru|booking@eto\\.travel|ocb@corp\\.sletat\\.ru|info@otdykh\\.online|info@7day\\.travel|sales@almasai\\.kz|xtravel@travelata\\.ru|fly\\-tour@bk\\.ru|turfirma_poedem@mail\\.ru|no@mail\\.ru)$"
+        phones: "^\\+?(84997000304|71234567890|74951344411|74997000304|74959808092|77054313232|74997033160)$"
+        claim: "^(10133562|10375182|10533479|10609770|9508195|8242189)$"
+      replaceWithNone: "-2147483647"
+      replaceRegexWithNone: "^\\s*$"
+      append:
+        read:
+          path: "Fun&Sun/roomdesc/claim_202606181910.csv"
+          options:
+            mode: "PERMISSIVE"
+            multiline: "true"
+          trimValues: true
+          replaceRegexPatrial:
+            confirmeddate: "\\.000$"
+            canceldate: "\\.000$"
+            datebeg: " 00:00:00\\.000$"
+            dateend: " 00:00:00\\.000$"
+          aliases:
+            inc: "claim"
+        ids: "claim"
+        type: "left"
+        renameSuffix: "_claim"
+        append:
+          - read:
+              path: "Fun&Sun/roomdesc/partner_202606182005.csv"
+              options:
+                mode: "PERMISSIVE"
+                multiline: "true"
+              trimValues: true
+              aliases:
+                inc: "partner_claim"
+            ids: "partner_claim"
+            type: "left"
+            renameSuffix: "_partner"
+          - read:
+              path: "Fun&Sun/roomdesc/status_202606182017.csv"
+              options:
+                mode: "PERMISSIVE"
+                multiline: "true"
+              trimValues: true
+              aliases:
+                inc: "status_claim"
+            ids: "status_claim"
+            type: "left"
+            renameSuffix: "_status"
+          - read:
+              path: "Fun&Sun/roomdesc/tour_202606182016.csv"
+              options:
+                mode: "PERMISSIVE"
+                multiline: "true"
+              trimValues: true
+              aliases:
+                inc: "tour_claim"
+            ids: "tour_claim"
+            type: "left"
+            renameSuffix: "_tour"
+          - read:
+              path: "Fun&Sun/roomdesc/order__202606181955.csv"
+              options:
+                mode: "PERMISSIVE"
+                multiline: "true"
+              trimValues: true
+              replaceWithNone: "-2147483647"
+              replaceRegexPatrial:
+                datebeg: " 00:00:00\\.000$"
+                dateend: " 00:00:00\\.000$"
+              filter:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "claim"
+                  - fn: "or"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "hotel"
+                      - fn: "isNotNull"
+                        column: "room"
+            ids: "claim"
+            type: "left"
+            renameSuffix: "_order"
+            append:
+              - read:
+                  path: "Fun&Sun/roomdesc/room_202606182018.csv"
+                  options:
+                    mode: "PERMISSIVE"
+                    multiline: "true"
+                  trimValues: true
+                  aliases:
+                    inc: "room_order"
+                ids: "room_order"
+                type: "left"
+                renameSuffix: "_room"
+              - read:
+                  path: "Fun&Sun/roomdesc/hotel_202606182021.csv"
+                  options:
+                    mode: "PERMISSIVE"
+                    multiline: "true"
+                  trimValues: true
+                  aliases:
+                    inc: "hotel_order"
+                ids: "hotel_order"
+                type: "left"
+                renameSuffix: "_hotel"
+                append:
+                  read:
+                    path: "Fun&Sun/roomdesc/town_202606182021.csv"
+                    options:
+                      mode: "PERMISSIVE"
+                      multiline: "true"
+                    trimValues: true
+                    aliases:
+                      inc: "town_hotel"
+                  ids: "town_hotel"
+                  type: "left"
+                  renameSuffix: "_town"
+                  append:
+                    read:
+                      path: "Fun&Sun/roomdesc/state_202606182017.csv"
+                      options:
+                        mode: "PERMISSIVE"
+                        multiline: "true"
+                      trimValues: true
+                      aliases:
+                        inc: "state_town"
+                    ids: "state_town"
+                    type: "left"
+                    renameSuffix: "_state"
+    entities:
+      common:
+        columns:
+          claim_id: "claim"
+      persons:
+        columns:
+          name_1: "name_old"
+          name_2: "original_name"
+          name_3: "name"
+          birth_date: "born"
+          sex: "male"
+      phones:
+        columns:
+          phones: "phones"
+          mobile: "mobile"
+      emails:
+        columns:
+          email: "email"
+      documents:
+        columns:
+          serial: "pserie"
+          serial_num: "pnumber"
+          authority: "pgiven"
+          date_issue: "pissue"
+          date_expire: "pvalid"
+      raw_metadata:
+        columns:
+          order_status: "name_status"
+          partner: "name_partner"
+          tour: "name_tour"
+          tour_hotel: "name_hotel"
+          tour_room: "name_room"
+          tour_town: "name_town"
+          tour_state: "name_state"
+          tour_confirmeddate: "confirmeddate_claim"
+          tour_canceldate: "canceldate_claim"
+          tour_databeg: "datebeg_order"
+          tour_dataend: "dateend_order"
+          claim_tour_databeg: "datebeg_claim"
+          claim_tour_dataend: "dateend_claim"
+  - id: "buyer"
+    read:
+      path: "Fun&Sun/roomdesc/phys_byer_202606182010.csv"
+      options:
+        mode: "PERMISSIVE"
+        multiline: "true"
+      trimValues: true
+      replaceRegexPatrial:
+        born: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        givendate: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        name: "(\\b\\[?([Бб][Ее][Зз] ?[Ии][Мм][Ее][Нн][Ииb]+|[Пп]+[Оо]+[Зз]+[Жж]+[Ее]+|([Бб][Ее][Зз]|[Нн][Ее][Тт]) ?[Фф][Аа][Мм][Ии][Лл][Ии][Ии] ?[Бб][еЕ][Зз] ?[Ии][Мм][Ее][Нн][Ииb]|non? ?name*n?( ?non? ?name*n?)*|ekskursiia turist|excursion tourist|tourist excursion|transfer tourist)\\]?\\b|^([Тт]естфамил|[Тт]естоваяфамили|[Ээ]кскурсия |[Тт]рансфер [Тт]ур|[Тт]есттурист|[Тт]урист ?[Тт]урист|[mn]*[mnao]*[mnaoh]* ?n+a+m+e|familiya).*)"
+        email: "^(bron@onlinetours\\.travel|charteravia@city\\.travel|onlinebooking@kaztour\\.kz|touroperators@travelata\\.ru|avia@kaspi\\.kz|manager@level\\.travel|tours@kaspi\\.kz|pinkinfo@pinkelephant\\.ru|booking@eto\\.travel|ocb@corp\\.sletat\\.ru|info@otdykh\\.online|info@7day\\.travel|sales@almasai\\.kz|xtravel@travelata\\.ru|fly\\-tour@bk\\.ru|turfirma_poedem@mail\\.ru|no@mail\\.ru)$"
+        phones: "^\\+?(84997000304|71234567890|74951344411|74997000304|74959808092|77054313232|74997033160|74951747838|74951344411|79057401146|84997000304|79165709070|79212343434|79214654334|79247305599|79181216060|77000956006)$"
+      replaceWithNone: "-2147483647"
+      replaceRegexWithNone: "^\\s*$"
+      aliases:
+        inc: "phys_buyer"
+      append:
+        read:
+          path: "Fun&Sun/roomdesc/claim_202606181910.csv"
+          options:
+            mode: "PERMISSIVE"
+            multiline: "true"
+          trimValues: true
+          replaceRegexPatrial:
+            confirmeddate: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+            canceldate: " \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+        ids: "phys_buyer"
+        type: "left"
+        renameSuffix: "_claim"
+    entities:
+      common:
+        columns:
+          claim_id: "inc_claim"
+      persons:
+        columns:
+          name: "name"
+          birth_date: "born"
+      phones:
+        columns:
+          phones: "phones"
+      emails:
+        columns:
+          email: "email"
+      documents:
+        columns:
+          serial: "pserie"
+          serial_num: "pnumber"
+          authority: "pgiven"
+          authority_code: "pcodegiven"
+          date_issue: "givendate"
+          inn: "inn"
+      address:
+        columns:
+          address: "address"
+      actuality:
+        columns:
+          confirm_date: "confirmeddate_claim"
+          cancel_date: "canceldate_claim"
+silver:
+  - id: "people"
+    entities:
+      common:
+        columns:
+          claim_id:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "claim_id"
+                value:
+                  lit: "^\\d+$"
+              value: "claim_id"
+      persons:
+        columns:
+          names:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "name_udf"
+                      column: "name_1"
+                    - fn: "name_udf"
+                      column: "name_2"
+                    - fn: "name_udf"
+                      column: "name_3"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+          sex:
+            source:
+              fn: "sex_udf"
+              column: "sex"
+      phones:
+        columns:
+          __phone:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "split"
+                  column: "phones"
+                  pattern:
+                    lit: ","
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "__phone"
+                        value:
+                          lit: "^375|\\b375"
+                      value:
+                        fn: "phone_udf"
+                        column: "__phone"
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "mobile"
+                        value:
+                          lit: "^375|\\b375"
+                      value:
+                        fn: "phone_udf"
+                        column: "mobile"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "email_udf"
+              column: "email"
+            filter: true
+      documents:
+        columns:
+          __serial:
+            source:
+              fn: "lower"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "serial"
+                  - "serial_num"
+                sep:
+                  lit: ""
+            filter:
+              fn: "rlike"
+              column: "__serial"
+              value:
+                lit: "ав|вм|нв|кн|мр|мс|кв|рр"
+          documents:
+            source:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рб"
+              serial: "__serial"
+              authority:
+                fn: "case"
+                condition:
+                  fn: "ne"
+                  column: "authority"
+                  value:
+                    lit: "уточним позже"
+                value: "authority"
+              date_issue: "date_issue"
+              date_expire: "date_expire"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                order_status: "order_status"
+                tour_confirmeddate:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "tour_confirmeddate"
+                    value:
+                      lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                  value: "tour_confirmeddate"
+                tour_canceldate:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "tour_canceldate"
+                    value:
+                      lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                  value: "tour_canceldate"
+                tour_databeg:
+                  fn: "coalesce"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "tour_databeg"
+                        value:
+                          lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                      value: "tour_databeg"
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "claim_tour_databeg"
+                        value:
+                          lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                      value: "claim_tour_databeg"
+                tour_dataend:
+                  fn: "coalesce"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "tour_dataend"
+                        value:
+                          lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                      value: "tour_dataend"
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "claim_tour_dataend"
+                        value:
+                          lit: "^\\d{4}-\\d{2}-\\d{2}$"
+                      value: "claim_tour_dataend"
+                partner: "partner"
+                tour: "tour"
+                tour_hotel: "tour_hotel"
+                tour_room: "tour_room"
+                tour_town: "tour_town"
+                tour_state: "tour_state"
+            filter: true
+  - id: "buyer"
+    entities:
+      common:
+        columns:
+          claim_id:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "claim_id"
+                value:
+                  lit: "^\\d+$"
+              value: "claim_id"
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+      phones:
+        columns:
+          __phone:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "split"
+                  column: "phones"
+                  pattern:
+                    lit: ","
+          phones:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "__phone"
+                value:
+                  lit: "^375|\\b375"
+              value:
+                fn: "phone_udf"
+                column: "__phone"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "email_udf"
+              column: "email"
+            filter: true
+      documents:
+        columns:
+          __serial:
+            source:
+              fn: "lower"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "serial"
+                  - "serial_num"
+                sep:
+                  lit: ""
+            filter:
+              fn: "rlike"
+              column: "__serial"
+              value:
+                lit: "ав|вм|нв|кн|мр|мс|кв|рр"
+          documents:
+            source:
+              fn: "explode"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "document_udf"
+                    type:
+                      lit: "паспорт гражданина рб"
+                    serial: "__serial"
+                    authority: "authority"
+                    authority_code:
+                      fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "authority_code"
+                        value:
+                          lit: "^\\d{3}( |\\-)?\\d{3}$"
+                      value: "authority_code"
+                    date_issue: "date_issue"
+                  - fn: "document_udf"
+                    type:
+                      lit: "инн рб"
+                    serial: "inn"
+            filter: true
+      address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column: "address"
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "latest_actuality_date_udf"
+              columns:
+                - "confirm_date"
+                - "cancel_date"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+gold:
+  ids:
+    - id: "people"
+      transformations:
+        op: "nullifyDocsByTypes"
+        ids: "claim_id"
+        notInTypes: "5"
+    - id: "buyer"
+      transformations:
+        - op: "filter"
+          function:
+            fn: "and"
+            columns:
+              - fn: "isNotNull"
+                column: "documents"
+              - fn: "gt"
+                column:
+                  fn: "size"
+                  column: "documents"
+                value:
+                  lit: 0
+        - op: "withColumn"
+          column: "__buyer"
+          function:
+            fn: "base_raw_validation_udf"
+            column:
+              lit: "True"
+        - op: "nullifyColByOccurrence"
+          column: "claim_id"
+          occurrenceColumn: "claim_id"
+  transformations:
+    - op: "relations"
+      ids: "claim_id"
+      columns:
+        - fn: "try_element_at"
+          column: "names"
+          value:
+            lit: 1
+        - "birth_date"
+        - fn: "getField"
+          column:
+            fn: "try_element_at"
+            column: "documents"
+            value:
+              lit: 1
+          value:
+            lit: "serial"
+        - fn: "when"
+          cases:
+            condition:
+              fn: "isNotNull"
+              column: "__buyer"
+            value:
+              lit: "Оформивший заказ"
+          otherwise:
+            lit: "Привязаны к одному заказу"
+    - op: "dropColumns"
+      columns: "__buyer"
+    - op: "withColumn"
+      column: "relations"
+      function:
+        fn: "expr"
+        value:
+          lit: "CASE
+            WHEN exists(relations, x -> x LIKE '%Оформивший заказ') THEN
+                array_sort(array_union(
+                    filter(relations, x -> x LIKE '%Оформивший заказ'),
+                    slice(filter(relations, x -> NOT x LIKE '%Оформивший заказ'), 1, 19)
+                ))
+            ELSE
+                slice(relations, 1, 20)
+        END"
+    - op: "groupBy"
+      columns:
+        - "names"
+        - "birth_date"
+        - "documents"
+        - "sex"
+        - "relations"
+        - "claim_id"
+      positive:
+        fn: "isNotNull"
+        column: "documents"
+    - op: "dropColumns"
+      columns: "claim_id"
+    - op: "aggGroupBy"
+      columns:
+        - "source_entity_id"
+        - "actuality"
+        - "raw_metadata"
+        - "phones"
+        - "emails"
+  remain: [ "documents" ]

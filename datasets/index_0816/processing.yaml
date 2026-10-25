@@ -1,0 +1,78 @@
+sourceId: "index_0816"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0816/raw/all_customers_merged_arena_fitness.csv"
+    options:
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "День рождения"
+    phones:
+      columns:
+        phone: "Телефон"
+    actuality:
+      columns:
+        visit_date: "Последний визит"
+    raw_metadata:
+        columns:
+          uslugi: "Услуги"
+          contract: "Контракт"
+          contract_expire: "Срок действия контракта"
+          comment: "Примечание"
+          location: "Локация"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "visit_date"
+            date_format:
+              lit: "%Y-%m-%d %H:%M:%S"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                uslugi: "uslugi"
+                contract: "contract"
+                contract_expire: "contract_expire"
+                comment: "comment"
+                location: "location"
+            filter: true
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

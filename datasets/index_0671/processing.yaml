@@ -1,0 +1,66 @@
+sourceId: "index_0671"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0671/raw/аІоеарteka_ru.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "имя"
+    phones:
+      columns:
+        phone: "телефон"
+    raw_metadata:
+        columns:
+          источник: "источник"
+          номер_заказа: "номер_заказа"
+    actuality:
+      columns:
+        data: "дата_создания"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                источник: "источник"
+                номер_заказа: "номер_заказа"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "data"
+            date_format:
+              lit: "%d-%m-%Y %H:%M:%S"
+          filter: true
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

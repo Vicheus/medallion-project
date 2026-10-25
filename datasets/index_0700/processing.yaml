@@ -1,0 +1,200 @@
+sourceId: "index_0700"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/forces/index_0700/raw/22.714 тысяч военных РФ.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+    replaceWithNone: [ "#N/A", "00.00.0000", "1100181818", "нет" ]
+    replaceRegexWithNone: [ "^\\s*$", "^0{2,}$" ]
+  entities:
+    persons:
+      columns:
+        name: "Фамилия_Имя_Отчество"
+    address:
+      columns:
+        address: "Адрес"
+    documents:
+      columns:
+        passport_serial: "Номер паспорта"
+        passport_date_issue: "Дата выдачи"
+        passport_authority: "Кем выдан"
+        inn_serial: "Ид_номер"
+    forces:
+      columns:
+        rank: "Воинское звание"
+        unit_code: "Воинская часть"
+        unit_belongs_to: "подчин"
+        additional_unit_value: "ТВ"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "rlike"
+                      column: "passport_serial"
+                      value:
+                        lit: "1{5,}"
+                  value:
+                    fn: "document_udf"
+                    type:
+                      lit: "паспорт гражданина рф"
+                    serial:
+                      fn: "when"
+                      cases:
+                        condition:
+                          fn: "eq"
+                          column:
+                            fn: "length"
+                            column: "passport_serial"
+                          value:
+                            lit: 9
+                        value:
+                          fn: "concat"
+                          columns:
+                            - lit: "0"
+                            - "passport_serial"
+                      otherwise: "passport_serial"
+                    date_issue: "passport_date_issue"
+                    authority: "passport_authority"
+                    date_format:
+                      lit: "%m/%d/%Y"
+                - fn: "document_udf"
+                  type:
+                    lit: "инн"
+                  serial: "inn_serial"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            unit_code:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column: "unit_code"
+                  value:
+                    lit: "^([АКПУФЦШ]|1182 центр|\\d{1,3} |\\d{3}Б)"
+              value:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "isin"
+                    column: "unit_code"
+                    values:
+                      - lit: "2511"
+                      - lit: "6017"
+                      - lit: "3333"
+                      - lit: "3013"
+                      - lit: "2561"
+                      - lit: "3216"
+                      - lit: "9436"
+                      - lit: "1904"
+                      - lit: "3213"
+                      - lit: "1855"
+                      - lit: "1907"
+                      - lit: "3051"
+                      - lit: "9643"
+                      - lit: "105"
+                      - lit: "5"
+                  value:
+                    fn: "lpad"
+                    column: "unit_code"
+                    len:
+                      lit: 5
+                    pad:
+                      lit: "0"
+                otherwise:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "startswith"
+                      column: "unit_code"
+                      value:
+                        lit: "в распоряжении "
+                    value:
+                      fn: "regexp_replace"
+                      column: "unit_code"
+                      pattern:
+                        lit: "^в распоряжении "
+                  otherwise: "unit_code"
+            unit_name:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "unit_code"
+                value:
+                  lit: "^([АКПУФЦШ]|1182 центр|\\d{1,3} |\\d{3}Б)"
+              value: "unit_code"
+            rank: "rank"
+          filter: true
+    raw_metadata:
+      entities: "forces"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              подчин: "unit_belongs_to"
+              ТВ:
+                fn: "case"
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "ne"
+                      column:
+                        fn: "lower"
+                        column: "additional_unit_value"
+                      value:
+                        fn: "lower"
+                        column: "unit_belongs_to"
+                    - fn: "not"
+                      column:
+                        fn: "endswith"
+                        column:
+                          fn: "lower"
+                          column: "unit_code"
+                        value:
+                          fn: "lower"
+                          column: "additional_unit_value"
+                    - fn: "not"
+                      column:
+                        fn: "startswith"
+                        column:
+                          fn: "lower"
+                          column: "unit_code"
+                        value:
+                          fn: "lower"
+                          column: "additional_unit_value"
+                value: "additional_unit_value"
+          filter: true
+gold:
+  remain: [ "documents", "forces" ]

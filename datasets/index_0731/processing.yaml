@@ -1,0 +1,371 @@
+sourceId: "index_0731"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: [ "-", "(empty)" ]
+    replaceRegexWithNone: "^\\s*$"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+    educations:
+      columns:
+        education_field_1: "metadata.edication"
+        education_field_2: "metadata.education"
+    socials:
+      columns:
+        socials: "metadata.social_networks"
+    links:
+      columns:
+        links: "metadata.links"
+    address:
+      columns:
+        address: "address"
+    forces:
+      columns:
+        tag_number: "metadata.id"
+        rank: "metadata.military_rank"
+        position: "metadata.military_service"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    educations:
+      columns:
+        __education:
+          source:
+            fn: "coalesce"
+            columns:
+              - "education_field_1"
+              - "education_field_2"
+        __date_start:
+          source:
+            fn: "regexp_extract"
+            column: "__education"
+            pattern:
+              lit: "^(In )?(\\d{4})\\-"
+            index:
+              lit: 2
+        __date_end:
+          source:
+            fn: "when"
+            cases:
+              - condition:
+                  fn: "rlike"
+                  column: "__education"
+                  value:
+                    lit: "(\\d{4}\\)?|incomplete education)$"
+                value:
+                  fn: "regexp_extract"
+                  column: "__education"
+                  pattern:
+                    lit: "(graduated in )?(\\d{4})\\)?(, incomplete education)?$"
+                  index:
+                    lit: 2
+              - condition:
+                  fn: "rlike"
+                  column: "__education"
+                  value:
+                    lit: "^(In )?(\\d{4})\\-"
+                value:
+                  fn: "regexp_extract"
+                  column: "__education"
+                  pattern:
+                    lit: "^(In )?\\d{4}\\-(\\d{4})"
+                  index:
+                    lit: 2
+        __title:
+          source:
+            fn: "regexp_extract"
+            column: "__education"
+            pattern:
+              lit: "^(Supposedly,|In \\d{4}\\-\\d{4}|\\d{4}\\-\\d{4})?(.*?)(?=(;|\\(?\\d{4})|$)"
+            index:
+              lit: 2
+        educations:
+          source:
+            fn: "education_udf"
+            title: "__title"
+            date_start: "__date_start"
+            date_end: "__date_end"
+            date_format:
+              lit: "%Y"
+            comment:
+              fn: "case"
+              condition:
+                fn: "startswith"
+                column: "__education"
+                value:
+                  lit: "Supposedly,"
+              value: "__education"
+          filter: true
+    socials:
+      columns:
+        __socials:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "socials"
+                pattern:
+                  lit: "[,\\s]+"
+          filter:
+            fn: "ne"
+            column: "__socials"
+            value:
+              lit: "https://www.facebook.com/profile.php"
+        socials:
+          source:
+            fn: "social_udf"
+            title:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "vk.com/"
+                  value:
+                    lit: "Vk"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "ok.ru/"
+                  value:
+                    lit: "Ok"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "facebook.com/"
+                  value:
+                    lit: "Facebook"
+                - condition:
+                    fn: "contains"
+                    column: "__socials"
+                    value:
+                      lit: "instagram.com/"
+                  value:
+                    lit: "Instagram"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "endswith"
+                  column: "__socials"
+                  value:
+                    lit: "https"
+                value:
+                  fn: "regexp_replace"
+                  column: "__socials"
+                  pattern:
+                    lit: "https$"
+              otherwise: "__socials"
+          filter: true
+    links:
+      entities:
+        - "links"
+        - "socials"
+      columns:
+        __link:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "concat"
+                columns:
+                  - fn: "split"
+                    column: "links"
+                    pattern:
+                      lit: ", "
+                  - fn: "split"
+                    column:
+                      fn: "trim"
+                      column:
+                        fn: "regexp_replace"
+                        column: "socials"
+                        pattern:
+                          lit: "\\S*(vk\\.com|ok\\.ru|facebook\\.com|instagram\\.com|photo\\.myspot)\\S*"
+                      symbols:
+                        lit: " ,."
+                    pattern:
+                      lit: ", "
+        links:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "__link"
+              value:
+                lit: "^http"
+            value:
+              fn: "link_udf"
+              title:
+                fn: "when"
+                cases:
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://archive\\."
+                    value:
+                      lit: "Web Archive"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://informnapalm\\."
+                    value:
+                      lit: "InformNapalm"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://myrotvorets\\."
+                    value:
+                      lit: "Myrotvorets"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://www\\.torgilist\\."
+                    value:
+                      lit: "Torgilist"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://rutorgi\\."
+                    value:
+                      lit: "Rutorgi"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://bankrotbaza\\."
+                    value:
+                      lit: "Bankrotbaza"
+                  - condition:
+                      fn: "rlike"
+                      column: "__link"
+                      value:
+                        lit: "^https?://my\\.mail\\."
+                    value:
+                      lit: "MyMail"
+              link: "__link"
+          filter: true
+    address:
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "address"
+                pattern:
+                  lit: " / "
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "rlike"
+                  column: "__address"
+                  value:
+                    lit: "^[Ss]upposedly"
+                value:
+                  fn: "regexp_replace"
+                  column: "__address"
+                  pattern:
+                    lit: "^[Ss]upposedly"
+              otherwise: "__address"
+          filter: true
+    comment:
+      entities: "address"
+      columns:
+        comment:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "address"
+              value:
+                lit: "^[Ss]upposedly"
+            value:
+              fn: "concat_ws"
+              columns:
+                - lit: "address:"
+                - "address"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "startswith"
+                  column: "tag_number"
+                  value:
+                    lit: "X-"
+                value:
+                  fn: "regexp_replace"
+                  column: "tag_number"
+                  pattern:
+                    lit: "^X"
+                  replacement:
+                    lit: "Х"
+              otherwise: "tag_number"
+            rank: "rank"
+            position: "position"
+            unit_name:
+              lit: "417 отдельный развед батальйон"
+          filter: true
+gold:
+  remain: [ "phones", "emails", "educations", "socials", "forces" ]

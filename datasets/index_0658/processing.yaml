@@ -1,0 +1,1421 @@
+sourceId: "index_0658"
+
+bronze:
+  read:
+    path: "boostra.ru (1.4m, february 2024).csv"
+    trimValues: true
+    replaceRegexPatrial:
+      "user_info_firstname": "^'|'$"
+      "user_info_lastname": "^'|'$"
+      "user_info_patronymic": "^'|'$"
+    replaceWithNone:
+      - "-"
+      - "."
+      - "нет"
+      - "Нет"
+      - "НЕТ"
+      - "нету"
+      - "Нету"
+      - "НЕТУ"
+      - "Не знаю"
+      - "не знаю"
+      - "Не ввел"
+      - "Не пользуюсь"
+      - "Не имею"
+      - "тест"
+      - "Тест"
+      - "ТЕСТ"
+      - ", , ул., д."
+      - ", , , д"
+      - "обл , г , ул ,"
+      - "г , г , ул ,"
+      - "край , г , ул ,"
+      - "обл , с , ул ,"
+      - "Респ , г , ул ,"
+      - "обл , п , ул ,"
+      - "г , г , пр-кт ,"
+      - "обл , д , ул ,"
+      - "обл , г , пр-кт ,"
+      - "обл , рп , ул ,"
+      - "[]"
+    replaceRegexWithNone: "^(\\s|\\.|\\-|\")*$"
+  entities:
+    persons:
+      columns:
+        firstname: "user_info_firstname"
+        lastname: "user_info_lastname"
+        middlename: "user_info_patronymic"
+        sex: "user_info_gender"
+        birth_date: "user_info_birth"
+        birth_place_1: "user_info_birth_place"
+        birth_place_2: "user_info_bplace"
+        relationship: "user_info_marital_status"
+        children: "user_info_childs_count"
+    relations:
+      columns:
+        name_1: "user_info_contact_person_name"
+        phone_1: "user_info_contact_person_phone"
+        relation_1: "user_info_contact_person_relation"
+        name_2: "user_info_contact_person2_name"
+        phone_2: "user_info_contact_person2_phone"
+        relation_2: "user_info_contact_person2_relation"
+        name_3: "user_info_contact_person3_name"
+        phone_3: "user_info_contact_person3_phone"
+        relation_3: "user_info_contact_person3_relation"
+    phones:
+      columns:
+        phone: "user_info_phone_mobile"
+        work_phone: "user_info_work_phone"
+        additional_phone: "user_info_identified_phone"
+    emails:
+      columns:
+        email: "user_info_email"
+    educations:
+      columns:
+        level: "user_info_education"
+    documents:
+      columns:
+        passport_serial: "user_info_passport_serial"
+        passport_authority: "user_info_passport_issued"
+        passport_authority_code: "user_info_subdivision_code"
+        passport_date_issue: "user_info_passport_date"
+        inn_serial: "user_info_inn"
+        snils_serial: "user_info_Snils"
+    address:
+      columns:
+        reg_index: "user_info_Regindex"
+        reg_region: "user_info_Regregion"
+        reg_city: "user_info_Regcity"
+        reg_street: "user_info_Regstreet"
+        reg_building: "user_info_Reghousing"
+        reg_flat: "user_info_Regroom"
+        reg_region_type: "user_info_Regregion_shorttype"
+        reg_city_type: "user_info_Regcity_shorttype"
+        reg_street_type: "user_info_Regstreet_shorttype"
+        index: "user_info_Faktindex"
+        region: "user_info_Faktregion"
+        city: "user_info_Faktcity"
+        street: "user_info_Faktstreet"
+        building: "user_info_Fakthousing"
+        flat: "user_info_Faktroom"
+        region_type: "user_info_Faktregion_shorttype"
+        city_type: "user_info_Faktcity_shorttype"
+        street_type: "user_info_Faktstreet_shorttype"
+    works:
+      columns:
+        post: "user_info_profession"
+        company: "user_info_workplace"
+        company_address: "user_info_work_address"
+        company_address_index: "user_info_Workindex"
+        company_address_region: "user_info_Workregion"
+        company_address_city: "user_info_Workcity"
+        company_address_street: "user_info_Workstreet"
+        company_address_building: "user_info_Workhousing"
+        company_address_flat: "user_info_Workroom"
+        company_address_region_type: "user_info_Workregion_shorttype"
+        company_address_city_type: "user_info_Workcity_shorttype"
+        company_address_street_type: "user_info_Workstreet_shorttype"
+    socials:
+      columns:
+        fb: "user_info_social_fb"
+        inst: "user_info_social_inst"
+        ok: "user_info_social_ok"
+        vk: "user_info_social_vk"
+    ips:
+      columns:
+        ip_reg: "user_info_reg_ip"
+        ip_last: "user_info_last_ip"
+    actuality:
+      columns:
+        accept_date: "user_info_accept_data_added_date"
+        additional_data_added_date: "user_info_additional_data_added_date"
+        address_added_date: "user_info_address_data_added_date"
+        card_added_date: "user_info_card_added_date"
+        last_visit_date: "user_info_last_lk_visit_time"
+        personal_data_added_date: "user_info_personal_data_added_date"
+        user_info_created_date: "user_info_created"
+    raw_metadata:
+      columns:
+        income: "user_info_income_base"
+        additional_income: "user_info_income_additional"
+        employment_type: "user_info_employment"
+        workdirector_name: "user_info_workdirector_name"
+        work_scope: "user_info_work_scope"
+        experience: "user_info_experience"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - fn: "regexp_replace"
+                column: "lastname"
+                pattern:
+                  lit: "[0-9]"
+              - fn: "regexp_replace"
+                column: "firstname"
+                pattern:
+                  lit: "[0-9]"
+              - fn: "regexp_replace"
+                column: "middlename"
+                pattern:
+                  lit: "[0-9]"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+        birth_place:
+          source:
+            fn: "coalesce"
+            columns:
+              - fn: "address_udf"
+                column: "birth_place_1"
+              - fn: "address_udf"
+                column: "birth_place_2"
+        relationship:
+          source:
+            fn: "relationship_udf"
+            column: "relationship"
+        children:
+          source:
+            fn: "when"
+            cases:
+              - condition:
+                  fn: "isin"
+                  column: "children"
+                  values:
+                    - lit: "Один"
+                    - lit: "Два"
+                    - lit: "Три"
+                    - lit: "Больше трех"
+                value:
+                  fn: "children_udf"
+                  column:
+                    lit: "есть"
+              - condition:
+                  fn: "eq"
+                  column: "children"
+                  value:
+                    lit: "Нет детей"
+                value:
+                  fn: "children_udf"
+                  column:
+                    lit: "нету"
+    relations:
+      columns:
+        __name_1:
+          source:
+            fn: "name_udf"
+            column: "name_1"
+        __phone_1:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__name_1"
+            value:
+              fn: "phone_udf"
+              column: "phone_1"
+        __relation_1:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__phone_1"
+            value:
+              fn: "relations_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "__name_1"
+                  - "__phone_1"
+                  - fn: "regexp_replace"
+                    column:
+                      fn: "concat"
+                      columns:
+                        - fn: "upper"
+                          column:
+                            fn: "substring"
+                            column: "relation_1"
+                            pos:
+                              lit: 1
+                            len:
+                              lit: 1
+                        - fn: "substring"
+                          column: "relation_1"
+                          pos:
+                            lit: 2
+                          len:
+                            fn: "length"
+                            column: "relation_1"
+                    pattern:
+                      lit: "\\b/\\b"
+                    replacement:
+                      lit: " или "
+        __name_2:
+          source:
+            fn: "name_udf"
+            column: "name_2"
+        __phone_2:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__name_2"
+            value:
+              fn: "phone_udf"
+              column: "phone_2"
+        __relation_2:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__phone_2"
+            value:
+              fn: "relations_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "__name_2"
+                  - "__phone_2"
+                  - fn: "regexp_replace"
+                    column:
+                      fn: "concat"
+                      columns:
+                        - fn: "upper"
+                          column:
+                            fn: "substring"
+                            column: "relation_2"
+                            pos:
+                              lit: 1
+                            len:
+                              lit: 1
+                        - fn: "substring"
+                          column: "relation_2"
+                          pos:
+                            lit: 2
+                          len:
+                            fn: "length"
+                            column: "relation_2"
+                    pattern:
+                      lit: "\\b/\\b"
+                    replacement:
+                      lit: " или "
+        __name_3:
+          source:
+            fn: "name_udf"
+            column: "name_3"
+        __phone_3:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__name_3"
+            value:
+              fn: "phone_udf"
+              column: "phone_3"
+        __relation_3:
+          source:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "__phone_3"
+            value:
+              fn: "relations_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "__name_3"
+                  - "__phone_3"
+                  - fn: "regexp_replace"
+                    column:
+                      fn: "concat"
+                      columns:
+                        - fn: "upper"
+                          column:
+                            fn: "substring"
+                            column: "relation_3"
+                            pos:
+                              lit: 1
+                            len:
+                              lit: 1
+                        - fn: "substring"
+                          column: "relation_3"
+                          pos:
+                            lit: 2
+                          len:
+                            fn: "length"
+                            column: "relation_3"
+                    pattern:
+                      lit: "\\b/\\b"
+                    replacement:
+                      lit: " или "
+        relations:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "__relation_1"
+                  - "__relation_2"
+                  - "__relation_3"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "phones_udf"
+                column:
+                  fn: "array"
+                  columns:
+                    - "phone"
+                    - "work_phone"
+                    - "additional_phone"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    educations:
+      columns:
+        educations:
+          source:
+            fn: "education_udf"
+            level: "level"
+          filter: true
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "document_udf"
+                  type:
+                    lit: "паспорт гражданина рф"
+                  serial: "passport_serial"
+                  authority: "passport_authority"
+                  authority_code: "passport_authority_code"
+                  date_issue: "passport_date_issue"
+                  date_format:
+                    lit: "%d.%m.%Y"
+                - fn: "document_udf"
+                  type:
+                    lit: "инн"
+                  serial: "inn_serial"
+                - fn: "document_udf"
+                  type:
+                    lit: "снилс"
+                  serial: "snils_serial"
+          filter: true
+    address:
+      columns:
+        __address_1:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "reg_index"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "reg_region"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "reg_region_type"
+                        - fn: "not"
+                          column:
+                            fn: "contains"
+                            column:
+                              fn: "lower"
+                              column: "reg_region"
+                            value:
+                              fn: "lower"
+                              column: "reg_region_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "reg_region_type"
+                        - "reg_region"
+                  otherwise: "reg_region"
+              - fn: "case"
+                condition:
+                  fn: "ne"
+                  column:
+                    fn: "lower"
+                    column: "reg_region"
+                  value:
+                    fn: "lower"
+                    column: "reg_city"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "reg_city_type"
+                        - fn: "not"
+                          column:
+                            fn: "startswith"
+                            column:
+                              fn: "lower"
+                              column: "reg_city"
+                            value:
+                              fn: "lower"
+                              column: "reg_city_type"
+                        - fn: "not"
+                          column:
+                            fn: "endswith"
+                            column:
+                              fn: "lower"
+                              column: "reg_city"
+                            value:
+                              fn: "lower"
+                              column: "reg_city_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "reg_city_type"
+                        - "reg_city"
+                  otherwise: "reg_city"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "reg_street"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "or"
+                      columns:
+                        - fn: "and"
+                          columns:
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "reg_street"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                            - fn: "not"
+                              column:
+                                fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "reg_street"
+                                value:
+                                  lit: "^ул(ица)?\\.?$"
+                        - fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "reg_street"
+                          value:
+                            lit: "(^б\\-р\\b|\\bб\\-р$|^г\\-к\\b|\\bг\\-к$|^дор\\b|\\bдор$|^\\кв\\-лb|\\bкв\\-л$|^мкр\\b|\\bмкр$|^наб\\b|\\bнаб$|^пер\\b|\\bпер$|^переулок\\b|\\bпереулок$|^пл\\b|\\bпл$|^пр\\-кт\\b|\\bпр\\-кт$|^\\b|\\b$|^проезд\\b|\\bпроезд$|^тер\\b|\\bтер$|^ш\\b|\\bш$|^шоссе\\b|\\bшоссе$)"
+                    value: "reg_street"
+                  otherwise:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "or"
+                          columns:
+                            - fn: "isNull"
+                              column: "reg_street_type"
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "reg_street_type"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - lit: "ул."
+                            - "reg_street"
+                      - condition:
+                          fn: "not"
+                          column:
+                            fn: "and"
+                            columns:
+                              - fn: "isNotNull"
+                                column: "reg_street_type"
+                              - fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "reg_street_type"
+                                value:
+                                  lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - "reg_street"
+                            - "reg_street_type"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "reg_building"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "reg_building"
+                      value:
+                        lit: "(^д\\b|\\bд$|^дом\\b|\\bдом$)"
+                    value: "reg_building"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "д."
+                      - "reg_building"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "reg_flat"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "reg_flat"
+                      value:
+                        lit: "(^кв\\b|\\bкв$|^квартира\\b|\\bквартира$)"
+                    value: "reg_flat"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "кв."
+                      - "reg_flat"
+        __address_2:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "index"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "region"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "region_type"
+                        - fn: "not"
+                          column:
+                            fn: "contains"
+                            column:
+                              fn: "lower"
+                              column: "region"
+                            value:
+                              fn: "lower"
+                              column: "region_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "region_type"
+                        - "region"
+                  otherwise: "region"
+              - fn: "case"
+                condition:
+                  fn: "ne"
+                  column:
+                    fn: "lower"
+                    column: "region"
+                  value:
+                    fn: "lower"
+                    column: "city"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "city_type"
+                        - fn: "not"
+                          column:
+                            fn: "startswith"
+                            column:
+                              fn: "lower"
+                              column: "city"
+                            value:
+                              fn: "lower"
+                              column: "city_type"
+                        - fn: "not"
+                          column:
+                            fn: "endswith"
+                            column:
+                              fn: "lower"
+                              column: "city"
+                            value:
+                              fn: "lower"
+                              column: "city_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "city_type"
+                        - "city"
+                  otherwise: "city"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "street"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "or"
+                      columns:
+                        - fn: "and"
+                          columns:
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "street"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                            - fn: "not"
+                              column:
+                                fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "street"
+                                value:
+                                  lit: "^ул(ица)?\\.?$"
+                        - fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "street"
+                          value:
+                            lit: "(^б\\-р\\b|\\bб\\-р$|^г\\-к\\b|\\bг\\-к$|^дор\\b|\\bдор$|^\\кв\\-лb|\\bкв\\-л$|^мкр\\b|\\bмкр$|^наб\\b|\\bнаб$|^пер\\b|\\bпер$|^переулок\\b|\\bпереулок$|^пл\\b|\\bпл$|^пр\\-кт\\b|\\bпр\\-кт$|^\\b|\\b$|^проезд\\b|\\bпроезд$|^тер\\b|\\bтер$|^ш\\b|\\bш$|^шоссе\\b|\\bшоссе$)"
+                    value: "street"
+                  otherwise:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "or"
+                          columns:
+                            - fn: "isNull"
+                              column: "street_type"
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "street_type"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - lit: "ул."
+                            - "street"
+                      - condition:
+                          fn: "not"
+                          column:
+                            fn: "and"
+                            columns:
+                              - fn: "isNotNull"
+                                column: "street_type"
+                              - fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "street_type"
+                                value:
+                                  lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - "street"
+                            - "street_type"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "building"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "building"
+                      value:
+                        lit: "(^д\\b|\\bд$|^дом\\b|\\bдом$)"
+                    value: "building"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "д."
+                      - "building"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "flat"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "flat"
+                      value:
+                        lit: "(^кв\\b|\\bкв$|^квартира\\b|\\bквартира$)"
+                    value: "flat"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "кв."
+                      - "flat"
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "__address_1"
+                  - "__address_2"
+        address:
+          source:
+            fn: "address_udf"
+            column: "__address"
+          filter: true
+    works:
+      columns:
+        __work_address:
+          source:
+            fn: "concat_ws"
+            columns:
+              - "company_address_index"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "company_address_region"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_address_region_type"
+                        - fn: "not"
+                          column:
+                            fn: "contains"
+                            column:
+                              fn: "lower"
+                              column: "company_address_region"
+                            value:
+                              fn: "lower"
+                              column: "company_address_region_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "company_address_region_type"
+                        - "company_address_region"
+                  otherwise: "company_address_region"
+              - fn: "case"
+                condition:
+                  fn: "ne"
+                  column:
+                    fn: "lower"
+                    column: "company_address_region"
+                  value:
+                    fn: "lower"
+                    column: "company_address_city"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_address_city_type"
+                        - fn: "not"
+                          column:
+                            fn: "startswith"
+                            column:
+                              fn: "lower"
+                              column: "company_address_city"
+                            value:
+                              fn: "lower"
+                              column: "company_address_city_type"
+                        - fn: "not"
+                          column:
+                            fn: "endswith"
+                            column:
+                              fn: "lower"
+                              column: "company_address_city"
+                            value:
+                              fn: "lower"
+                              column: "company_address_city_type"
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - "company_address_city_type"
+                        - "company_address_city"
+                  otherwise: "company_address_city"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "company_address_street"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "or"
+                      columns:
+                        - fn: "and"
+                          columns:
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "company_address_street"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                            - fn: "not"
+                              column:
+                                fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "company_address_street"
+                                value:
+                                  lit: "^ул(ица)?\\.?$"
+                        - fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "company_address_street"
+                          value:
+                            lit: "(^б\\-р\\b|\\bб\\-р$|^г\\-к\\b|\\bг\\-к$|^дор\\b|\\bдор$|^\\кв\\-лb|\\bкв\\-л$|^мкр\\b|\\bмкр$|^наб\\b|\\bнаб$|^пер\\b|\\bпер$|^переулок\\b|\\bпереулок$|^пл\\b|\\bпл$|^пр\\-кт\\b|\\bпр\\-кт$|^\\b|\\b$|^проезд\\b|\\bпроезд$|^тер\\b|\\bтер$|^ш\\b|\\bш$|^шоссе\\b|\\bшоссе$)"
+                    value: "company_address_street"
+                  otherwise:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "or"
+                          columns:
+                            - fn: "isNull"
+                              column: "company_address_street_type"
+                            - fn: "rlike"
+                              column:
+                                fn: "lower"
+                                column: "company_address_street_type"
+                              value:
+                                lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - lit: "ул."
+                            - "company_address_street"
+                      - condition:
+                          fn: "not"
+                          column:
+                            fn: "and"
+                            columns:
+                              - fn: "isNotNull"
+                                column: "company_address_street_type"
+                              - fn: "rlike"
+                                column:
+                                  fn: "lower"
+                                  column: "company_address_street_type"
+                                value:
+                                  lit: "(^ул\\b|\\bул$|^улица\\b|\\bулица$)"
+                        value:
+                          fn: "concat_ws"
+                          columns:
+                            - "company_address_street"
+                            - "company_address_street_type"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "company_address_building"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "company_address_building"
+                      value:
+                        lit: "(^д\\b|\\bд$|^дом\\b|\\bдом$)"
+                    value: "company_address_building"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "д."
+                      - "company_address_building"
+              - fn: "case"
+                condition:
+                  fn: "isNotNull"
+                  column: "company_address_flat"
+                value:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "company_address_flat"
+                      value:
+                        lit: "(^кв\\b|\\bкв$|^квартира\\b|\\bквартира$)"
+                    value: "company_address_flat"
+                  otherwise:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "кв."
+                      - "company_address_flat"
+        __simple_parsed_work_address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "concat_ws"
+              columns:
+                - "company_address_index"
+                - "company_address_region"
+                - "company_address_city"
+                - "company_address_street"
+                - "company_address_building"
+                - "company_address_flat"
+        __parsed_work_address:
+          source:
+            fn: "address_udf"
+            column: "__work_address"
+        __parsed_company_address:
+          source:
+            fn: "address_udf"
+            column: "company_address"
+        works:
+          source:
+            fn: "work_udf"
+            post:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "isNotNull"
+                      column: "company"
+                    - fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "company"
+                      value:
+                        lit: "^(пенсионер(ка)?|студент(ка)?|не работаю студент(ка)?|не работаю\\.? пенсионер(ка)?|неработающий пенсионер|безработный пенсионер|пенсионер(ка)? не работаю|пенсионер неработающий|не работающий пенсионер)\\.?$"
+                value:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "company"
+                        value:
+                          lit: "^(пенсионер(ка)?|не работаю\\.? пенсионер(ка)?|неработающий пенсионер|безработный пенсионер|пенсионер(ка)? не работаю|пенсионер неработающий|не работающий пенсионер)\\.?$"
+                      value:
+                        fn: "coalesce"
+                        columns:
+                          - fn: "base_raw_validation_udf"
+                            column: "post"
+                          - lit: "Пенсионер"
+                    - condition:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "company"
+                        value:
+                          lit: "^(студент(ка)?|не работаю студент(ка)?)\\.?$"
+                      value:
+                        fn: "coalesce"
+                        columns:
+                          - fn: "base_raw_validation_udf"
+                            column: "post"
+                          - lit: "Студент"
+              otherwise: "post"
+            company:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "company"
+                  value:
+                    lit: "^((временно )?не работаю|временно безработны?й?и?а?я?|пенсионер(ка)?|без ?работный|без ?работная|студент(ка)?|без работы|неработаю|без названия|временно без работы|ооо|не работаю студент(ка)?|не работаю\\.? пенсионер(ка)?|неработающий пенсионер|безработный пенсионер|пенсионер(ка)? не работаю|пенсионер неработающий|не работающий пенсионер)\\.?$"
+              value: "company"
+            company_address:
+              fn: "coalesce"
+              columns:
+                - "__parsed_company_address"
+                - "__parsed_work_address"
+            comment:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "__parsed_work_address"
+                  - fn: "isNotNull"
+                    column: "__parsed_company_address"
+                  - fn: "ne"
+                    column:
+                      fn: "lower"
+                      column: "__simple_parsed_work_address"
+                    value:
+                      fn: "lower"
+                      column: "__parsed_company_address"
+              value: "__parsed_work_address"
+          filter: true
+    socials:
+      columns:
+        __fb_social:
+          source:
+            fn: "social_udf"
+            title:
+              lit: "Facebook"
+            id:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "fb"
+                      value:
+                        lit: "^.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "fb"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?facebook\\.com/?|есть|не |непользуюсь|одноклассники|фейсбук|фесбук|только мессенджеры|в контакте|httpswww\\.google|https\\://www\\.google\\.com/url|httpswww\\.monetka|www\\.ru|nety?|fecbook|facebook|\\d{3,4}|ватсап|ватсапп|однакласниках|интернет"
+                value: "fb"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "or"
+                  columns:
+                    - fn: "and"
+                      columns:
+                        - fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "fb"
+                          value:
+                            lit: "^(https?://)? ?(m\\.|www\\.)?facebook\\.com/?.{3,}$"
+                        - fn: "not"
+                          column:
+                            fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "fb"
+                            value:
+                              lit: "^(https?://)? ?(m\\.|www\\.)?facebook\\.com/?( ?н?нету?|netu?y?|(home\\.php)?\\?_rdr|htt|htth|httht|httpshttphtthth|httpswwwfacebookcom|вконтакте|ааа|аоо|если|зарегистрирован|менятамнет|неи|неимею|непрофилей|нетего|нетнасайте|нетсоцсетей|нетсоцссетей|огромное|однокласники|отсутствует|украсноебелоеестьтолькообщийсайт|home|home\\.php\\?ref=wizard|profile\\.php\\?ref=wizard|people/|profile\\.php\\?ref=bookmarks&soft=bookmarks|profile/edit/infotab/section/forms/\\?section=contact\\-info|profile/intro/edit/public/\\?refid=\\d{1,2}&ref=bookmarks|htthttpswwwfacebookcomprofilephpid100011|gettingstartedstepfriendrequests|facebookcomkcomomht|facebookcomfacebookcomkcomfacebookcompro|facebookcom|facebook|comcocomcomcococomcoccomcocomccomcocomco|mfacebookcomhomephprdr|com|cocomocomceboocomfacebookcocomocomcebocc|mfacebookcomprofilephprefbookmarks|pswwwfacebookcomwwwfacebookcomfacebookco|wwwfacebookcommvkcomfriendssectiononline|wwwfacebookcomhttpswwwfacebookcomprofile|wwwfacebookcomfacebookcomlocale2ruru|wwwfacebookcomfacebookcomfacebookcomkcom|profile|mfacebookcomprofilephp|mfacebookcomhomephp|mfacebookcomhomephprefwizard|mfacebookcomhomephprefwizardrdr|mfacebookcomcampaignlandingphpcampaignid|vkcomawayphptohttps3a2f2fwwwfacebookcom2|vkcomawayphputf1tohttps3a2f2fwwwfacebook|profileeditinfotabsectionformsinfosurfac|pprofilephp|profilephp|непользуюсь|profilephprefbookmarks|mobilefacebookcomprofilephprefbookmarks|mfacebookcomrdr|mfaceboo|mfacebookcom|rdr|profile\\.php|profile\\.php\\?ref=bookmarks|facebookrussia/|gettingstarted/\\?step=app_install&_rdr|home\\.php| ?\\d{3,4}|[01]{5,}|о+|o+|m+|и+|w+)\\s*$"
+                value: "fb"
+        __inst_social:
+          source:
+            fn: "social_udf"
+            title:
+              lit: "Instagram"
+            id:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "inst"
+                      value:
+                        lit: "^.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "inst"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?instagram\\.com/?|чудесную девочку|непользуюсь|есть|inst|instagram|не |я не |незнаю|неьу|инстограмм|\\d{3,4}"
+                value: "inst"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "inst"
+                      value:
+                        lit: "^(https?://)? ?(m\\.|www\\.)?instagram\\.com/?.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "inst"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?instagram\\.com/?( ?н?нету?|netu?y?|неимею|\\?hl=ru| ?\\d{3,4}|[016]{5,}|facebookcom|чтобычтобычтобы|отсутствует|отсутствуют|нетстраницы|неиспользую|неимею|неи|м+|а+|w+|инстаграм|нетпрофиля|okru|instgram|instagramcomи|instogram)\\s*$"
+                value: "inst"
+        __ok_social:
+          source:
+            fn: "social_udf"
+            title:
+              lit: "Ok"
+            id:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "ok"
+                      value:
+                        lit: "^.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "ok"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?ok\\.(ru|com)/?|есть|однокласс?никит?(\\.ru)?|однокласники|не |спасибо|гету|url url swiftkey flow flow flow"
+                value: "ok"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "ok"
+                      value:
+                        lit: "^(https?://)? ?(m\\.|www\\.)?ok\\.(ru|com)/?.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "ok"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?ok\\.(ru|com)/?(profile/)?( ?н?нету?|netu?y?|okrufeed|okru| ?\\d{1,4}|.{0,2}|profi|feed|profiprof|однокласс?ники|pswwwokruprofilewwwokruprofileokruprofil|okrudkstcmduserConfigcmdPopLayerstlayerc|ююeюleюileюfileюofileюrofileюprofileюpr|цofileщrofileщprofileщprofile8|о+|р+|скачать|неимею|неиспользую|незарегестрирован|есть|етнигде|profil|profipro|profiprofнет|proproffi|proprofprofi|proprofproprpfi|okruprofil|mokrudkstcmduserProfileprevCmduserProfil|mokru|https|com|music|index\\.html)\\s*$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "ok"
+                        value:
+                          lit: "^https://ok\\.ru/dk\\?st"
+                value: "ok"
+        __vk:
+          source:
+            fn: "regexp_replace_all"
+            column: "vk"
+            values:
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Vv][Kk]\\. ?[Cc]om ?/?": "https://vk.com/"
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Mm]\\. ?[Vv][Kk]\\. ?[Cc]om ?/?": "https://m.vk.com/"
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Ww]{3}\\. ?[Vv][Kk]\\. ?[Cc]om ?/?": "https://www.vk.com/"
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Vv][Kk]\\. ?[Rr]u ?/?": "https://vk.ru/"
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Mm]\\. ?[Vv][Kk]\\. ?[Rr]u ?/?": "https://m.vk.ru/"
+              "^([Hh][Tt]{1,3})?[Pp]?[Ss]? ?/{0,2}[Ww]{3}\\. ?[Vv][Kk]\\. ?[Rr]u ?/?": "https://www.vk.ru/"
+        __vk_social:
+          source:
+            fn: "social_udf"
+            title:
+              lit: "Vk"
+            id:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "__vk"
+                      value:
+                        lit: "^.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "__vk"
+                        value:
+                          lit: "^((https?://?)? ?(m\\.|www\\.)?vk\\.(com|ru)/?|https://www\\.chemical|https://www\\.google\\.com|https://www\\.yandex\\.ru/search|не |https://kontragent\\.pro|https://lmerlin|https://master\\-|https://microklad|https://mobti|http://www\\.psa)"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "__vk"
+                        value:
+                          lit: "^(минианкета|есть|россия|в контакте|однокласс?ники|интернет|неь|вк\\.|вконтакте|вконктакте|www\\.vkontakte\\.ru|www/vk\\.com|netu?y?|mail\\.ru|http://yarshipyard\\.ru/|\\d{3,4}|oднокласснтки|Vc\\. Com|Www\\. KXZ\\. Ru|hhhp://v contacte\\.com|http:// https://vk\\.com|http://ok\\.ru/)$"
+                value: "__vk"
+            link:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column:
+                        fn: "lower"
+                        column: "__vk"
+                      value:
+                        lit: "^(https?://)? ?(m\\.|www\\.)?vk\\.(com|ru)/?.{3,}$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "__vk"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?vk\\.(com|ru)/?(нету?|неетнетнет|неимею|незарегестрирован|неиспользую|нетсоцсетей|неважео|несижу|ннт|одноклассники|отсутствует|ььь|если|feed|nety?|mvkcom|mvkcomsettingsactchangeaddr|mvkcomfeedsectionrecommended|mvkcomsettingsactchange|mvkcomfriendssectiononline|mvkcomwallactaddfromfeed|mvkcomfeed|mvkcommenu|menu|wwwfacebookcom|settings|вконтакте|vkontakte|vkcom|http?s?|httpsmvkcomfeed|hthttpsmvkcomfeed|httpsmvkcommenu|mvkcomfeedsectionnotifications|непользуюсьниоднимизданныхресурсов|\\d{3,4}|1{5,}||wall\\?act=add&from=feed|feed\\?section=notifications)$"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "__vk"
+                        value:
+                          lit: "^(https?://)? ?(m\\.|www\\.)?vk\\.(com|ru)/(settings|spinmoney|vk139646вашкод)"
+                value: "__vk"
+        socials:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "__fb_social"
+                  - "__inst_social"
+                  - "__ok_social"
+                  - "__vk_social"
+          filter: true
+    ips:
+      columns:
+        ips:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "isNotNull_ne"
+                      column: "ip_reg"
+                      value:
+                        lit: "127.0.0.1"
+                    value:
+                      fn: "ip_udf"
+                      ip: "ip_reg"
+                  - fn: "case"
+                    condition:
+                      fn: "isNotNull_ne"
+                      column: "ip_last"
+                      value:
+                        lit: "127.0.0.1"
+                    value:
+                      fn: "ip_udf"
+                      ip: "ip_last"
+          filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "accept_date"
+              - "additional_data_added_date"
+              - "address_added_date"
+              - "card_added_date"
+              - "last_visit_date"
+              - "personal_data_added_date"
+              - "user_info_created_date"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              user_info_income_base:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "income"
+                  value:
+                    lit: "^[1-9]\\d{1,11}$"
+                value: "income"
+              user_info_income_additional:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "additional_income"
+                  value:
+                    lit: "^[1-9]\\d{1,11}$"
+                value: "additional_income"
+              user_info_employment:
+                fn: "base_raw_validation_udf"
+                column: "employment_type"
+              user_info_workdirector_name:
+                fn: "name_udf"
+                column: "workdirector_name"
+              user_info_work_scope:
+                fn: "case"
+                condition:
+                  fn: "ne"
+                  column:
+                    fn: "base_raw_validation_udf"
+                    column: "employment_type"
+                  value:
+                    fn: "base_raw_validation_udf"
+                    column: "work_scope"
+                value:
+                  fn: "base_raw_validation_udf"
+                  column: "work_scope"
+              user_info_experience:
+                fn: "base_raw_validation_udf"
+                column: "experience"
+          filter: true
+gold:
+  remain: [ "phones", "documents" ]

@@ -1,0 +1,44 @@
+sourceId: "index_0701"
+
+bronze:
+  read:
+    path: "111_brigade_dnr.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    forces:
+      columns:
+        rank: "Воинское звание"
+        position: "Должность по штату"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%m/%d/%Y"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            position: "position"
+            unit_name:
+              lit: "111 бригада ДНР"
+          filter: true
+gold:
+  remain: [ "forces" ]

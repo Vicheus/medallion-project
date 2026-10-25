@@ -1,0 +1,145 @@
+sourceId: "index_0703"
+
+bronze:
+  read:
+    path: "150_мотостр_див.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+      multiline: "true"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "дата рождения"
+    educations:
+      columns:
+        education: "Образование"
+    forces:
+      columns:
+        rank: "в/звание"
+        position: "Наименование должности"
+        unit_name_part: "Подразделение"
+        date_start: "Дата назначения"
+        unused_comment: "Отрыв"
+    raw_metadata:
+      columns:
+        notes: "Примечание"
+        leave: "Отрыв"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%m/%d/%Y"
+    educations:
+      columns:
+        __title:
+          source:
+            fn: "regexp_replace"
+            column:
+              fn: "regexp_extract"
+              column: "education"
+              pattern:
+                lit: "^(.*?)\\s+(\\d{4})\\s+г\\..*$"
+              index:
+                lit: 1
+            pattern:
+              lit: "\\s+[вы]$"
+          filter: true
+        __level:
+          source:
+            fn: "when"
+            cases:
+              - condition:
+                  fn: "eq"
+                  column: "__title"
+                  value:
+                    lit: "Колледж"
+                value:
+                  lit: "среднее специальное"
+              - condition:
+                  fn: "eq"
+                  column: "__title"
+                  value:
+                    lit: "Осн. Общее"
+                value:
+                  lit: "основное общеее"
+              - condition:
+                  fn: "isin"
+                  column: "__title"
+                  values:
+                    - lit: "Институт"
+                    - lit: "Универ."
+                value:
+                  lit: "высшее"
+        __date_end:
+          source:
+            fn: "regexp_extract"
+            column: "education"
+            pattern:
+              lit: "^(.*?)\\s+(\\d{4})\\s+г\\..*$"
+            index:
+              lit: 2
+        educations:
+          source:
+            fn: "education_udf"
+            title:
+              fn: "case"
+              condition:
+                fn: "isNull"
+                column: "__level"
+              value: "__title"
+            level: "__level"
+            date_end: "__date_end"
+            date_format:
+              lit: "%Y"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            position: "position"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "150 мотострелковая дивизия"
+                - fn: "lower"
+                  column: "unit_name_part"
+            date_start: "date_start"
+            date_format:
+              lit: "%m/%d/%Y"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Примечание: "notes"
+              Отрыв:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "isin"
+                    column: "leave"
+                    values:
+                      - lit: "СВО территория ЛНР и ДНР"
+                      - lit: "ППД"
+                value: "leave"
+          filter: true
+gold:
+  remain: [ "educations", "forces" ]

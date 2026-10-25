@@ -1,0 +1,25 @@
+# Idea settings
+.idea
+.run
+
+# Logs
+logs
+
+# Environments
+.env
+.env.*
+.venv
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Data
+data
+
+# Scripts
+main.py
+
+# Byte-compiled / optimized / DLL files
+__pycache__/

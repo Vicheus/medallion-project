@@ -1,0 +1,286 @@
+sourceId: "index_0716"
+
+bronze:
+  - id: "in_use"
+    read:
+      path: "20мсд.csv"
+      options:
+        inferSchema: false
+        sep: ";"
+        multiline: "true"
+      trimValues: true
+      replaceWithNone: "#N/A"
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+          birth_date: "Дата рождения"
+      forces:
+        columns:
+          tag_number: "Личный номер"
+          rank: "Воинское звание"
+          position: "Воинская должность"
+          category: "Категория военнослужащего"
+          unit_name_part_1: "Объединение"
+          unit_name_part_2: "Соединение воинская часть"
+      raw_metadata:
+        columns:
+          leave_date: "Дата СОЧ"
+          leave_reason: "Обстоятельства СОЧ"
+  - id: "unused_duplicate"
+    read:
+      path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - 4. СОЧ ЮВО - 19,210 чел.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+silver:
+  id: "in_use"
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "coalesce"
+            columns:
+              - fn: "birth_date_udf"
+                column: "birth_date"
+                date_format:
+                  lit: "%m/%d/%Y"
+              - fn: "birth_date_udf"
+                column: "birth_date"
+                date_format:
+                  lit: "%d.%m.%Y"
+    forces:
+      columns:
+        __unit_name_part_1:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "isNull"
+                column: "unit_name_part_1"
+              value:
+                fn: "regexp_extract"
+                column: "unit_name_part_2"
+                pattern:
+                  lit: "^([28]\\s*О?АК?\\s+[12]\\s+АК)\\s+(.*)$"
+                index:
+                  lit: 1
+            otherwise: "unit_name_part_1"
+        __unit_name_part_2:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNull"
+                    column: "unit_name_part_1"
+                  - fn: "rlike"
+                    column: "unit_name_part_2"
+                    value:
+                      lit: "^[28]\\s*О?АК?\\s+[12]\\s+АК\\s+.*$"
+              value:
+                fn: "regexp_extract"
+                column: "unit_name_part_2"
+                pattern:
+                  lit: "^([28]\\s*О?АК?\\s+[12]\\s+АК)\\s+(.*)$"
+                index:
+                  lit: 2
+            otherwise: "unit_name_part_2"
+        __unit_code:
+          source:
+            fn: "regexp_extract"
+            column: "__unit_name_part_2"
+            pattern:
+              lit: "((?:в/ч\\s*)?(\\d{5}))?$"
+            index:
+              lit: 1
+        __finilized_unit_name_part_2:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "isNotNull_ne"
+                column: "__unit_code"
+              value:
+                fn: "regexp_replace"
+                column: "__unit_name_part_2"
+                pattern:
+                  fn: "concat"
+                  columns:
+                    - lit: "\\s*"
+                    - "__unit_code"
+                    - lit: "$"
+            otherwise: "__unit_name_part_2"
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number:
+              fn: "regexp_extract"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "startswith"
+                    column: "tag_number"
+                    value:
+                      lit: "BE-"
+                  value:
+                    fn: "translate"
+                    column: "tag_number"
+                    matching:
+                      lit: "BE"
+                    replace:
+                      lit: "ВЕ"
+                otherwise: "tag_number"
+              pattern:
+                lit: "^([^+]*)"
+              index:
+                lit: 1
+            rank:
+              fn: "regexp_replace"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "gt"
+                        column:
+                          fn: "length"
+                          column: "category"
+                        value:
+                          lit: 0
+                      - fn: "endswith"
+                        column: "rank"
+                        value: "category"
+                  value:
+                    fn: "regexp_replace"
+                    column: "rank"
+                    pattern:
+                      fn: "concat"
+                      columns:
+                        - lit: "\\s*"
+                        - "category"
+                        - lit: "$"
+                otherwise: "rank"
+              pattern:
+                lit: "по мобилизации"
+            position:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "position"
+                  value:
+                    lit: "^(в распоряжении|за штатом|распоряжение|нет должности|зачислен в распоряжение|выведен в распоряжение|резервный батальон|нет данных|нет информации|исключен|уволен |нет в штате|в списках части|воинская должность)"
+              value: "position"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - "__unit_name_part_1"
+                - lit: "20 мсд"
+                - fn: "case"
+                  condition:
+                    fn: "isNotNull_ne"
+                    column: "__finilized_unit_name_part_2"
+                  value: "__finilized_unit_name_part_2"
+            unit_code: "__unit_code"
+            category:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "or"
+                    columns:
+                      - fn: "eq"
+                        column:
+                          fn: "lower"
+                          column: "category"
+                        value:
+                          lit: "к/с"
+                      - fn: "contains"
+                        column:
+                          fn: "lower"
+                          column: "category"
+                        value:
+                          lit: "контракт"
+                  value:
+                    lit: "контракт"
+                - condition:
+                    fn: "rlike"
+                    column:
+                      fn: "lower"
+                      column: "category"
+                    value:
+                      lit: "^(по мобилизации|моб|призван|по частичной|по призыву)"
+                  value:
+                    lit: "мобилизованный"
+                - condition:
+                    fn: "eq"
+                    column:
+                      fn: "lower"
+                      column: "category"
+                    value:
+                      lit: "срочная служба"
+                  value:
+                    lit: "срочник"
+          filter: true
+    raw_metadata:
+      entities:
+        - "raw_metadata"
+        - "forces"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Воинская должность:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "position"
+                  value:
+                    lit: "^(зачислен в распоряжение |выведен в распоряжение |резервный батальон|исключен|уволен )"
+                value: "position"
+              Дата СОЧ:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column:
+                    fn: "lower"
+                    column: "leave_date"
+                  value:
+                    lit: "\\d{2,}"
+                value: "leave_date"
+              Обстоятельства СОЧ:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "isin"
+                    column:
+                      fn: "lower"
+                      column: "leave_reason"
+                    values:
+                      - lit: "ппд, сво"
+                      - lit: "самовольно покинул место несения службы"
+                      - lit: "самовольно покинул расположение подразделения"
+                      - lit: "самовольно покинул район расположения подразделения"
+                value: "leave_reason"
+          filter: true
+gold:
+  ids:
+    - id: "in_use"
+  remain: [ "forces" ]

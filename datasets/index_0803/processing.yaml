@@ -1,0 +1,65 @@
+sourceId: "index_0803"
+countryCode: "KZ"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0803/raw/topbilet_clean.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+  entities:
+    persons:
+      columns:
+        name: "name"
+    phones:
+      columns:
+        phone: "phone"
+    emails:
+      columns:
+        email: "email"
+    actuality:
+      columns:
+        data: "order_date"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "normalize_kz_letters_udf"
+              column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "data"
+            date_format:
+              lit: "%Y-%m-%d %H:%M:%S"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "emails"
+    positive: 
+        fn: isNotNull
+        column: "emails"
+  

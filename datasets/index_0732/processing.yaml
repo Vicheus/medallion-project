@@ -1,0 +1,51 @@
+sourceId: "index_0732"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    forces:
+      columns:
+        rank: "metadata.military_rank"
+        position: "metadata.military_position"
+        unit_name_part: "metadata.military_subdivision"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            unit_code:
+              lit: "53185"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "42 гвардейская мотострелковая дивизия 50 гвардейский самоходный артиллерийский полк"
+                - "unit_name_part"
+            position: "position"
+          filter: true
+gold:
+  remain: [ "forces" ]

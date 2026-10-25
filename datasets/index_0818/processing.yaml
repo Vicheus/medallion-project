@@ -1,0 +1,64 @@
+sourceId: "index_0818"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0818/raw/unichel_ru.csv"
+    options:
+      sep: "\t"
+  entities:
+    persons:
+      columns:
+        first_name: "first_name"
+        last_name: "last_name"
+        middle_name: "middle_name"
+        birth_date: "birth_date"
+    phones:
+      columns:
+        phone: "phone"
+    actuality:
+      columns:
+        order_date: "order_date"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "order_date"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+gold:
+  remain: [ "phones" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

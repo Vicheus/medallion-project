@@ -1,0 +1,486 @@
+sourceId: "index_0704"
+
+bronze:
+  read:
+    path: "155_оbrmp.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+      multiline: "true"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        firstname: "Имя"
+        lastname: "Фамилия"
+        middlename: "Отчество"
+        birth_date: "Дата рождения"
+        relationship: "Семейное положение"
+        birth_place: "Место рождения"
+        relations: "Состав семьи"
+    phones:
+      columns:
+        phone: "Номер контактного телефона"
+    documents:
+      columns:
+        passport_series: "Серия"
+        passport_number: "Номер"
+        passport_date_issue: "Дата выдачи"
+        passport_authority: "Орган выдавший паспорт"
+        passport_authority_code: "Код подразделения"
+        inn: "ИНН"
+        snils: "СНИЛС"
+        service_passport_serial: "служебный паспорт"
+        military_series: "ВБилетСерия"
+        military_number: "ВБилет"
+        military_date_issue: "ВБилетДата выдачи"
+        military_authority: "ВбилетМесто выдачи"
+    educations:
+      columns:
+        title: "Тип образовательного учреждения"
+        level: "Тип образования"
+    address:
+      columns:
+        living_address: "Адрес фактического проживания"
+        registered_address: "Данные о регистрации по месту жительства"
+    financials:
+      columns:
+        finance: "Банковский реквизиты"
+    forces:
+      columns:
+        tag_number: "Личный номер"
+        rank: "Воинское звание"
+        position: "Наименование воинской  должности"
+        mos_code: "ВУС"
+        unit_name_part: "Подразделение"
+    raw_metadata:
+      columns:
+        speciality: "Специальность"
+        mil_comst: "какой военный комиссариат"
+        mil_ops: "Сведения об участии в боевых действия"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "lastname"
+              - "firstname"
+              - "middlename"
+          filter: true
+        birth_date:
+          source:
+            fn: "coalesce"
+            columns:
+              - fn: "birth_date_udf"
+                column: "birth_date"
+                date_format:
+                  lit: "%m/%d/%Y"
+              - fn: "birth_date_udf"
+                column: "birth_date"
+                date_format:
+                  lit: "%d.%m.%Y"
+        relationship:
+          source:
+            fn: "relationship_udf"
+            column: "relationship"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column: "birth_place"
+        __prepared_relations:
+          source:
+            fn: "explode"
+            column:
+              fn: "split"
+              column:
+                fn: "trim"
+                column:
+                  fn: "regexp_replace"
+                  column: "relations"
+                  pattern:
+                    lit: "\\s+(?=\\d)"
+                  replacement:
+                    lit: " "
+                symbols:
+                  lit: " .,;"
+              pattern:
+                lit: "\\s{3,}|\\s*\n\\s*|\\s*г\\.р\\.\\s*|\\s*г\\.р\\s*|\\s*г\\. р\\.\\s*"
+        __relation_type:
+          source:
+            fn: "regexp_extract"
+            column:
+              fn: "trim"
+              column: "__prepared_relations"
+              symbols:
+                lit: " .,;"
+            pattern:
+              lit: "^\\s*(Жена|Мать|Мама|Отец|Сын|Дочь|Тетя)"
+            index:
+              lit: 1
+        __relation_name:
+          source:
+            fn: "name_udf"
+            column:
+              fn: "regexp_extract"
+              column:
+                fn: "trim"
+                column: "__prepared_relations"
+                symbols:
+                  lit: " .,;"
+              pattern:
+                lit: "^\\s*(Жена|Мать|Мама|Отец|Сын|Дочь|Тетя)?[: ]*(.*?)\\s(\\d{2}\\.\\d{2}\\.\\d{2,4})$"
+              index:
+                lit: 2
+        __relation_birth_date:
+          source:
+            fn: "coalesce"
+            columns:
+              - fn: "birth_date_udf"
+                column:
+                  fn: "regexp_extract"
+                  column: "__prepared_relations"
+                  pattern:
+                    lit: "\\s(\\d{2}\\.\\d{2}\\.\\d{4})$"
+                  index:
+                    lit: 1
+                date_format:
+                  lit: "%d.%m.%Y"
+              - fn: "birth_date_udf"
+                column:
+                  fn: "regexp_extract"
+                  column: "__prepared_relations"
+                  pattern:
+                    lit: "\\s(\\d{2}\\.\\d{2}\\.\\d{2})$"
+                  index:
+                    lit: 1
+                date_format:
+                  lit: "%d.%m.%y"
+        relations:
+          source:
+            fn: "case"
+            condition:
+              fn: "ne"
+              column: "__prepared_relations"
+              value:
+                lit: "Отец:Сведений не имеет"
+            value:
+              fn: "relations_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "__relation_name"
+                  - "__relation_birth_date"
+                  - fn: "when"
+                    cases:
+                      - condition:
+                          fn: "eq"
+                          column: "__relation_type"
+                          value:
+                            lit: ""
+                        value:
+                          fn: "when"
+                          cases:
+                            - condition:
+                                fn: "isin"
+                                column: "__relation_name"
+                                values:
+                                  - lit: "Реимбаева Фирия Гильмитдинова"
+                                  - lit: "Паль Елена Васильевна"
+                              value:
+                                lit: "Мать"
+                            - condition:
+                                fn: "isin"
+                                column: "__relation_name"
+                                values:
+                                  - lit: "Реимбаева Фирия Гильмитдинова"
+                                  - lit: "Паль Елена Васильевна"
+                              value:
+                                lit: "Мать"
+                          otherwise: "__relation_type"
+                      - condition:
+                          fn: "eq"
+                          column: "__relation_type"
+                          value:
+                            lit: "Мама"
+                        value:
+                          lit: "Мать"
+                    otherwise: "__relation_type"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    documents:
+      columns:
+        __passport_serial:
+          source:
+            fn: "concat"
+            columns:
+              - fn: "when"
+                cases:
+                  condition:
+                    fn: "lt"
+                    column:
+                      fn: "length"
+                      column: "passport_series"
+                    value:
+                      lit: 4
+                  value:
+                    fn: "lpad"
+                    column: "passport_series"
+                    len:
+                      lit: 4
+                    pad:
+                      lit: "0"
+                otherwise: "passport_series"
+              - fn: "when"
+                cases:
+                  condition:
+                    fn: "lt"
+                    column:
+                      fn: "length"
+                      column: "passport_number"
+                    value:
+                      lit: 6
+                  value:
+                    fn: "lpad"
+                    column: "passport_number"
+                    len:
+                      lit: 6
+                    pad:
+                      lit: "0"
+                otherwise: "passport_number"
+        __passport_date_issue:
+          source:
+            fn: "multiple_date_formats_udf"
+            column: "passport_date_issue"
+            date_formats:
+              - lit: "%m/%d/%Y"
+              - lit: "%d.%m.%Y г."
+              - lit: "%d.%m.%Yг"
+            max_years_from:
+              lit: 40
+            result_date_format:
+              lit: "%Y-%m-%d"
+        __military_number:
+          source:
+            fn: "regexp_replace"
+            column: "military_number"
+            pattern:
+              lit: "[^0-9]"
+        __military_serial:
+          source:
+            fn: "concat"
+            columns:
+              - "military_series"
+              - fn: "when"
+                cases:
+                  condition:
+                    fn: "lt"
+                    column:
+                      fn: "length"
+                      column: "__military_number"
+                    value:
+                      lit: 7
+                  value:
+                    fn: "lpad"
+                    column: "military_number"
+                    len:
+                      lit: 7
+                    pad:
+                      lit: "0"
+                otherwise: "military_number"
+        __military_date_issue:
+          source:
+            fn: "multiple_date_formats_udf"
+            column: "military_date_issue"
+            date_formats:
+              - lit: "%m/%d/%Y"
+              - lit: "%d.%m.%Y г."
+              - lit: "%d,%m.%Y г"
+            max_years_from:
+              lit: 40
+            result_date_format:
+              lit: "%Y-%m-%d"
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "document_udf"
+                  type:
+                    lit: "паспорт гражданина рф"
+                  serial: "__passport_serial"
+                  date_issue: "__passport_date_issue"
+                  authority: "passport_authority"
+                  authority_code: "passport_authority_code"
+                  date_format:
+                    lit: "%Y-%m-%d"
+                - fn: "document_udf"
+                  type:
+                    lit: "удостоверение личности военнослужащего"
+                  serial: "__military_serial"
+                  date_issue: "__military_date_issue"
+                  authority: "military_authority"
+                  date_format:
+                    lit: "%Y-%m-%d"
+                - fn: "document_udf"
+                  type:
+                    lit: "служебный паспорт рф"
+                  serial: "service_passport_serial"
+                  date_expire:
+                    fn: "regexp_replace"
+                    column: "service_passport_serial"
+                    pattern:
+                      lit: ".*до\\s"
+                  date_format:
+                    lit: "%d.%m.%Y"
+                - fn: "document_udf"
+                  type:
+                    lit: "инн"
+                  serial: "inn"
+                - fn: "document_udf"
+                  type:
+                    lit: "снилс"
+                  serial: "snils"
+          filter: true
+    educations:
+      columns:
+        __level:
+          source:
+            fn: "regexp_replace"
+            column: "level"
+            pattern:
+              lit: "\\s*[()-]\\s*"
+            replacement:
+              lit: " "
+        educations:
+          source:
+            fn: "education_udf"
+            title: "title"
+            level: "__level"
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "address_udf"
+                    column: "living_address"
+                  - fn: "address_udf"
+                    column: "registered_address"
+          filter: true
+    financials:
+      columns:
+        __invoice_number:
+          source:
+            fn: "regexp_extract"
+            column:
+              fn: "regexp_replace"
+              column: "finance"
+              pattern:
+                lit: "-"
+            pattern:
+              lit: "\\b(4\\d{16,21})\\b"
+            index:
+              lit: 1
+          filter:
+            fn: "ne"
+            column: "__invoice_number"
+            value:
+              lit: ""
+        __title:
+          source:
+            fn: "trim"
+            column:
+              fn: "regexp_replace"
+              column:
+                fn: "regexp_extract"
+                column: "finance"
+                pattern:
+                  lit: "^(.*?)(?=\\s{2,}|\n|Номер|номер)"
+                index:
+                  lit: 1
+              pattern:
+                lit: "\"|г\\. Москва"
+        financials:
+          source:
+            fn: "struct"
+            values:
+              title: "__title"
+              invoice_number: "__invoice_number"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "startswith"
+                  column: "tag_number"
+                  value:
+                    lit: "BE-"
+                value:
+                  fn: "translate"
+                  column: "tag_number"
+                  matching:
+                    lit: "BE"
+                  replace:
+                    lit: "ВЕ"
+              otherwise: "tag_number"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "155 отдельная гвардейская бригада морской пехоты"
+                - fn: "lower"
+                  column: "unit_name_part"
+            rank: "rank"
+            position: "position"
+            mos_code: "mos_code"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Специальность:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "isin"
+                    column:
+                      fn: "lower"
+                      column: "speciality"
+                    values:
+                      - lit: "общеобразовательная"
+                      - lit: "общеобразовательнгая"
+                      - lit: "обшеобразовательная"
+                value: "speciality"
+              какой военный комиссариат: "mil_comst"
+              Сведения об участии в боевых действия:
+                fn: "case"
+                condition:
+                  fn: "ne"
+                  column: "mil_ops"
+                  value:
+                    lit: "не участвовал"
+                value: "mil_ops"
+          filter: true
+gold:
+  remain: [ "phones", "documents", "forces", "address", "educations" ]

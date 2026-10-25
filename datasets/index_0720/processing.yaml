@@ -1,0 +1,65 @@
+sourceId: "index_0720"
+
+bronze:
+  read:
+    path: "data.csv"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+    address:
+      columns:
+        address: "address"
+    links:
+      columns:
+        link: "metadata.myrotvorets_url"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    links:
+      columns:
+        links:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "link"
+              value:
+                lit: "^http"
+            value:
+              fn: "link_udf"
+              title:
+                lit: "Myrotvorets"
+              link: "link"
+          filter: true
+gold:
+  transformations:
+    op: "groupBy"
+    columns:
+      - "birth_date"
+      - "links"
+    positive:
+      fn: "isNotNull"
+      column: "links"
+  remain: [ "links" ]

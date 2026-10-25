@@ -1,0 +1,2450 @@
+sourceId: "index_0677"
+
+bronze:
+  - id: "admins"
+    read:
+      path: "admins.csv"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+    entities:
+      persons:
+        columns:
+          name: "nik"
+      emails:
+        columns:
+          email: "email"
+      accounts:
+        columns:
+          login: "login"
+          password: "password"
+      raw_metadata:
+        columns:
+          departments: "departments"
+      actuality:
+        columns:
+          actuality: "date_lastrequest"
+  - id: "managers"
+    read:
+      path: "managers.csv"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+      append:
+        read:
+          path: "suppliers.csv"
+          options:
+            multiline: "true"
+          trimValues: " \"'/_-"
+          replaceRegexPatrial:
+            jury_address: "\\b(0{5}0+|1{5}1+)\\b"
+            address: "\\b(0{5}0+|1{5}1+)\\b"
+            full_address: "\\b(0{5}0+|1{5}1+)\\b"
+          replaceWithNone: "нет"
+          aliases:
+            id: "supplier_id"
+        ids: "supplier_id"
+        type: "left"
+        renameSuffix: "_suppliers"
+    entities:
+      persons:
+        columns:
+          firstname: "fname"
+          lastname: "lname"
+          middlename: "mname"
+      phones:
+        columns:
+          phones: "phone"
+      emails:
+        columns:
+          email: "email"
+      accounts:
+        columns:
+          login: "login"
+          password: "password"
+      works:
+        columns:
+          position: "position"
+          company_prefix: "opf_suppliers"
+          company_title: "name_suppliers"
+          company_alias: "alias_suppliers"
+          company_inn: "inn_suppliers"
+          official_address: "jury_address_suppliers"
+          address: "address_suppliers"
+          additional_address: "full_address_suppliers"
+          # ignored field
+          banking_details: "banking_details_suppliers"
+          banking_ogrn: "banking_add_suppliers"
+          company_url: "url_suppliers"
+      actuality:
+        columns:
+          actuality: "date_lastrequest"
+  - id: "stuff"
+    read:
+      path: "staff.csv"
+      options:
+        multiline: "true"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+      replaceRegexPatrial:
+        last_login: " 00:00:00$"
+        birthday: "^0$"
+        birthmonth: "^0$"
+        birthyear: "^0$"
+      aliases:
+        id: "staff_id"
+      append:
+        - read:
+            path: "staff_addresses.csv"
+            trimValues: " \"'/_-"
+            replaceWithNone: "нет"
+            aliases:
+              id_staff: "staff_id"
+            filter:
+              fn: "and"
+              columns:
+                - fn: "isNotNull"
+                  column: "id"
+                - fn: "isNotNull"
+                  column: "code_operator"
+                - fn: "isNotNull"
+                  column: "phone"
+          ids: "staff_id"
+          type: "left"
+          renameSuffix: "_staff_addresses"
+        - read:
+            path: "clients.csv"
+            options:
+              multiline: "true"
+            trimValues: " \"'/_-"
+            replaceRegexPatrial:
+              jur_address: "\\b(0{5}0+|1{5}1+)\\b"
+              address: "\\b(0{5}0+|1{5}1+)\\b"
+              post_index: "\\b(0{5}0+|1{5}1+)\\b"
+              post_address: "\\b(0{5}0+|1{5}1+)\\b"
+            replaceWithNone: "нет"
+            replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+            aliases:
+              id: "client_id"
+          ids: "client_id"
+          type: "left"
+          renameSuffix: "_staff_companies"
+        - read:
+            path: "transactions_FULL.csv"
+            options:
+              multiline: "true"
+            trimValues: " \"'/_-"
+            replaceWithNone: "нет"
+            replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+            append:
+              read:
+                path: "transactions_with_owners.csv"
+                options:
+                  multiline: "true"
+                trimValues: " \"'/_-"
+                replaceWithNone: "нет"
+                replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+              ids: [ "staff_id", "pan", "bank_name" ]
+              type: "full"
+              renameSuffix: "_staff_transactions_owners"
+          ids: "staff_id"
+          type: "left"
+          renameSuffix: "_staff_transactions"
+    entities:
+      persons:
+        columns:
+          firstname: "fname"
+          lastname: "lname"
+          middlename: "mname"
+          birthday: "birthday"
+          birthmonth: "birthmonth"
+          birthyear: "birthyear"
+      phones:
+        columns:
+          phone_code_1: "town_code"
+          phone_1: "phone"
+          phone_code_2: "code_operator_staff_addresses"
+          phone_2: "phone_staff_addresses"
+      emails:
+        columns:
+          email: "email"
+      accounts:
+        columns:
+          login: "login"
+          password: "password"
+      works:
+        columns:
+          position: "position"
+          company_official_prefix: "jur_opf_staff_companies"
+          company_official_title: "jur_name_staff_companies"
+          company_prefix: "opf_staff_companies"
+          company_alias: "name_staff_companies"
+          company_title: "official_name_staff_companies"
+          company_inn: "inn_staff_companies"
+          official_address: "jur_address_staff_companies"
+          address: "address_staff_companies"
+          additional_address_index: "post_index_staff_companies"
+          additional_address: "post_address_staff_companies"
+          company_url: "url_staff_companies"
+      raw_metadata:
+        columns:
+          department: "department"
+          pan: "pan_staff_transactions"
+          bank_name: "bank_name_staff_transactions"
+      actuality:
+        columns:
+          date_reg: "date_reg"
+          date_lastrequest: "date_lastrequest"
+          last_login: "last_login"
+  - id: "accounting_suppliers_stuff"
+    read:
+      path: "suppliers.csv"
+      options:
+        multiline: "true"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+      filter:
+        fn: "or"
+        columns:
+          - fn: "isNotNull"
+            column: "accounting_name"
+          - fn: "isNotNull"
+            column: "accounting_surname"
+          - fn: "isNotNull"
+            column: "accounting_patronymic"
+    entities:
+      persons:
+        columns:
+          firstname: "accounting_name"
+          lastname: "accounting_surname"
+          middlename: "accounting_patronymic"
+      phones:
+        columns:
+          phone_code: "accounting_code_town"
+          phone: "accounting_phone"
+      emails:
+        columns:
+          email: "accounting_email"
+      works:
+        columns:
+          company_prefix: "opf"
+          company_title: "name"
+          company_alias: "alias"
+          company_inn: "inn"
+          official_address: "jury_address"
+          address: "address"
+          additional_address: "full_address"
+          # ignored field
+          banking_details: "banking_details"
+          banking_ogrn: "banking_add"
+          company_url: "url"
+  - id: "delivery_manager_suppliers_stuff"
+    read:
+      path: "suppliers.csv"
+      options:
+        multiline: "true"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+      filter:
+        fn: "isNotNull"
+        column: "deliveryf_manager_fio"
+    entities:
+      persons:
+        columns:
+          name: "deliveryf_manager_fio"
+      phones:
+        columns:
+          phone_code: "accounting_code_town"
+          phone: "deliveryf_manager_phone"
+      emails:
+        columns:
+          email: "deliveryf_manager_email"
+      works:
+        columns:
+          position: "deliveryf_manager_position"
+          company_prefix: "opf"
+          company_title: "name"
+          company_alias: "alias"
+          company_inn: "inn"
+          official_address: "jury_address"
+          address: "address"
+          additional_address: "full_address"
+          # ignored field
+          banking_details: "banking_details"
+          banking_ogrn: "banking_add"
+          company_url: "url"
+  - id: "delivery_contact_suppliers_stuff"
+    read:
+      path: "suppliers.csv"
+      options:
+        multiline: "true"
+      trimValues: " \"'/_-"
+      replaceWithNone: "нет"
+      replaceRegexWithNone: "^(\\s|\\-|\\*|;|,|\\.|=|/|\\+|\")*$"
+      filter:
+        fn: "isNotNull"
+        column: "deliveryf_contact_fio"
+    entities:
+      persons:
+        columns:
+          name: "deliveryf_contact_fio"
+      phones:
+        columns:
+          phone: "deliveryf_contact_phone"
+      emails:
+        columns:
+          email_1: "deliveryf_contact_email1"
+          email_2: "deliveryf_contact_email2"
+      works:
+        columns:
+          position: "deliveryf_contact_position"
+          company_prefix: "opf"
+          company_title: "name"
+          company_alias: "alias"
+          company_inn: "inn"
+          official_address: "jury_address"
+          address: "address"
+          additional_address: "full_address"
+          # ignored field
+          banking_details: "banking_details"
+          banking_ogrn: "banking_add"
+          company_url: "url"
+silver:
+  - id: "admins"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "email_udf"
+              column: "email"
+            filter: true
+      accounts:
+        columns:
+          accounts:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "login"
+                  - fn: "isNotNull"
+                    column: "password"
+              value:
+                fn: "struct"
+                values:
+                  title:
+                    lit: "Доставка обедов Obed.ru"
+                  link:
+                    lit: "https://www.obed.ru"
+                  login: "login"
+                  password_hash: "password"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                departments: "departments"
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column: "actuality"
+            filter: true
+  - id: "managers"
+    entities:
+      persons:
+        columns:
+          __lastname:
+            source:
+              fn: "regexp_replace"
+              column: "lastname"
+              pattern:
+                lit: "\\d"
+          __firstname:
+            source:
+              fn: "regexp_replace"
+              column: "firstname"
+              pattern:
+                lit: "\\d"
+          __middlename:
+            source:
+              fn: "regexp_replace"
+              column: "middlename"
+              pattern:
+                lit: "\\d"
+          names:
+            source:
+              fn: "name_parts_ordered_udf"
+              columns:
+                - "__lastname"
+                - fn: "case"
+                  condition:
+                    fn: "ne"
+                    column: "__firstname"
+                    value: "__lastname"
+                  value: "__firstname"
+                - "__middlename"
+            filter: true
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "phones_udf"
+                  column:
+                    fn: "split"
+                    column: "phones"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "emails_udf"
+                  column:
+                    fn: "split"
+                    column: "email"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      accounts:
+        columns:
+          accounts:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "login"
+                  - fn: "isNotNull"
+                    column: "password"
+              value:
+                fn: "struct"
+                values:
+                  title:
+                    lit: "Доставка обедов Obed.ru"
+                  link:
+                    lit: "https://www.obed.ru"
+                  login: "login"
+                  password: "password"
+            filter: true
+      address:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "and"
+              columns:
+                - fn: "eq"
+                  column:
+                    fn: "size"
+                    column: "__filter_company_titles"
+                  value:
+                    lit: 1
+                - fn: "eq"
+                  column:
+                    fn: "lower"
+                    column:
+                      fn: "try_element_at"
+                      column: "__filter_company_titles"
+                      value:
+                        lit: 1
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "частное лицо"
+                      - fn: "lower"
+                        column:
+                          fn: "name_parts_ordered_udf"
+                          columns:
+                            - "lastname"
+                            - fn: "case"
+                              condition:
+                                fn: "ne"
+                                column: "firstname"
+                                value: "lastname"
+                              value: "firstname"
+                            - "middlename"
+          address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "address_udf"
+                      column: "official_address"
+                    - fn: "address_udf"
+                      column: "address"
+                    - fn: "address_udf"
+                      column: "additional_address"
+            filter: true
+      works:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_parts_ordered_udf"
+                            columns:
+                              - "lastname"
+                              - fn: "case"
+                                condition:
+                                  fn: "ne"
+                                  column: "firstname"
+                                  value: "lastname"
+                                value: "firstname"
+                              - "middlename"
+          __company_official_address:
+            source:
+              fn: "address_udf"
+              column: "official_address"
+          __company_address:
+            source:
+              fn: "address_udf"
+              column: "address"
+          __company_additional_address:
+            source:
+              fn: "address_udf"
+              column: "additional_address"
+          __main_address:
+            source:
+              fn: "coalesce"
+              columns:
+                - "__company_official_address"
+                - "__company_address"
+                - "__company_additional_address"
+          __all_additional_addresses:
+            source:
+              fn: "array_compact"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array_remove"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "__company_official_address"
+                      - "__company_address"
+                      - "__company_additional_address"
+                  value: "__main_address"
+          works:
+            source:
+              fn: "work_udf"
+              post: "position"
+              company: "__company"
+              company_ru_inn: "company_inn"
+              company_ru_ogrn:
+                fn: "coalesce"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_ogrn"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_ogrn"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "__company_official_address"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "__company_official_address"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_details"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_details"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+              company_address: "__main_address"
+              comment:
+                fn: "concat_ws"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_alias"
+                        - fn: "isNotNull"
+                          column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "lower"
+                            column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "concat_ws"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - fn: "lower"
+                                column: "company_title"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие названия: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_alias"
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "__all_additional_addresses"
+                        - fn: "gt"
+                          column:
+                            fn: "size"
+                            column: "__all_additional_addresses"
+                          value:
+                            lit: 0
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие адреса: "
+                        - fn: "array_join"
+                          column: "__all_additional_addresses"
+                          delimiter:
+                            lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "company_url"
+                      value:
+                        lit: "(i)[a-z]"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "url: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_url"
+                sep:
+                  lit: "; "
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column:
+                fn: "from_unixtime"
+                column: "actuality"
+                date_format:
+                  lit: "yyyy-MM-dd"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+  - id: "stuff"
+    entities:
+      persons:
+        columns:
+          __lastname:
+            source:
+              fn: "regexp_replace"
+              column: "lastname"
+              pattern:
+                lit: "(\\d|^(Имя не указано|По умолчанию)$)"
+          __firstname:
+            source:
+              fn: "regexp_replace"
+              column: "firstname"
+              pattern:
+                lit: "(\\d|^(Имя не указано|По умолчанию)$)"
+          __middlename:
+            source:
+              fn: "regexp_replace"
+              column: "middlename"
+              pattern:
+                lit: "(\\d|^(Имя не указано|По умолчанию)$)"
+          names:
+            source:
+              fn: "name_parts_ordered_udf"
+              columns:
+                - "__lastname"
+                - fn: "case"
+                  condition:
+                    fn: "ne"
+                    column: "__firstname"
+                    value: "__lastname"
+                  value: "__firstname"
+                - "__middlename"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "birthyear"
+                  - "birthmonth"
+                  - "birthday"
+                sep:
+                  lit: "-"
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "phones_udf"
+                  column:
+                    fn: "array"
+                    columns:
+                      - fn: "concat"
+                        columns:
+                          - "phone_code_1"
+                          - "phone_1"
+                      - fn: "concat"
+                        columns:
+                          - "phone_code_2"
+                          - "phone_2"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "emails_udf"
+                  column:
+                    fn: "split"
+                    column: "email"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      accounts:
+        columns:
+          accounts:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "login"
+                  - fn: "isNotNull"
+                    column: "password"
+              value:
+                fn: "struct"
+                values:
+                  title:
+                    lit: "Доставка обедов Obed.ru"
+                  link:
+                    lit: "https://www.obed.ru"
+                  login: "login"
+                  password: "password"
+            filter: true
+      address:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "company_prefix"
+                      - fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "company_alias"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "company_prefix"
+                      - "company_alias"
+                otherwise: "company_alias"
+          __company_official_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column: "company_title"
+          __company_additional_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "company_official_prefix"
+                      - fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "company_official_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_official_prefix"
+                              - lit: " "
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "company_official_prefix"
+                      - "company_official_title"
+                otherwise: "company_official_title"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company_title"
+                    - "__company_official_title"
+                    - "__company_additional_title"
+            filter:
+              fn: "and"
+              columns:
+                - fn: "eq"
+                  column:
+                    fn: "size"
+                    column: "__filter_company_titles"
+                  value:
+                    lit: 1
+                - fn: "eq"
+                  column:
+                    fn: "lower"
+                    column:
+                      fn: "try_element_at"
+                      column: "__filter_company_titles"
+                      value:
+                        lit: 1
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "частное лицо"
+                      - fn: "lower"
+                        column:
+                          fn: "name_parts_ordered_udf"
+                          columns:
+                            - "lastname"
+                            - fn: "case"
+                              condition:
+                                fn: "ne"
+                                column: "firstname"
+                                value: "lastname"
+                              value: "firstname"
+                            - "middlename"
+          address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "address_udf"
+                      column: "official_address"
+                    - fn: "address_udf"
+                      column: "address"
+                    - fn: "address_udf"
+                      column: "additional_address"
+            filter: true
+      works:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "company_prefix"
+                      - fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "company_alias"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "company_prefix"
+                      - "company_alias"
+                otherwise: "company_alias"
+          __company_official_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column: "company_title"
+          __company_additional_title:
+            source:
+              fn: "base_raw_validation_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "company_official_prefix"
+                      - fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "company_official_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_official_prefix"
+                              - lit: " "
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "company_official_prefix"
+                      - "company_official_title"
+                otherwise: "company_official_title"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company_title"
+                    - "__company_official_title"
+                    - "__company_additional_title"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_parts_ordered_udf"
+                            columns:
+                              - "lastname"
+                              - fn: "case"
+                                condition:
+                                  fn: "ne"
+                                  column: "firstname"
+                                  value: "lastname"
+                                value: "firstname"
+                              - "middlename"
+          __all_additional_company_titles:
+            source:
+              fn: "array"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "__company_official_title"
+                      - fn: "not"
+                        column:
+                          fn: "contains"
+                          column:
+                            fn: "lower"
+                            column: "__company_title"
+                          value:
+                            fn: "lower"
+                            column: "__company_official_title"
+                  value: "__company_official_title"
+                - fn: "case"
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "__company_additional_title"
+                      - fn: "not"
+                        column:
+                          fn: "and"
+                          columns:
+                            - fn: "contains"
+                              column:
+                                fn: "lower"
+                                column: "__company_title"
+                              value:
+                                fn: "lower"
+                                column: "__company_additional_title"
+                            - fn: "and"
+                              columns:
+                                - fn: "isNotNull"
+                                  column: "__company_official_title"
+                                - fn: "contains"
+                                  column:
+                                    fn: "lower"
+                                    column: "__company_official_title"
+                                  value:
+                                    fn: "lower"
+                                    column: "__company_additional_title"
+                  value: "__company_additional_title"
+          __company_official_address:
+            source:
+              fn: "address_udf"
+              column: "official_address"
+          __company_address:
+            source:
+              fn: "address_udf"
+              column: "address"
+          __company_additional_address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNotNull"
+                        column: "additional_address_index"
+                      - fn: "rlike"
+                        column: "additional_address_index"
+                        value:
+                          lit: "^\\d{6}$"
+                      - fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "additional_address"
+                          value: "additional_address_index"
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "additional_address_index"
+                      - "additional_address"
+          __main_address:
+            source:
+              fn: "coalesce"
+              columns:
+                - "__company_official_address"
+                - "__company_additional_address"
+                - "__company_address"
+          __all_additional_addresses:
+            source:
+              fn: "array_compact"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array_remove"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "__company_official_address"
+                      - "__company_additional_address"
+                      - "__company_address"
+                  value: "__main_address"
+          works:
+            source:
+              fn: "work_udf"
+              post: "position"
+              company: "__company_title"
+              company_ru_inn: "company_inn"
+              company_address: "__main_address"
+              comment:
+                fn: "concat_ws"
+                columns:
+                  - fn: "when"
+                    cases:
+                      - condition:
+                          fn: "and"
+                          columns:
+                            - fn: "isNotNull"
+                              column: "__company_official_title"
+                            - fn: "isNotNull"
+                              column: "__company_additional_title"
+                            - fn: "not"
+                              column:
+                                fn: "contains"
+                                column:
+                                  fn: "lower"
+                                  column: "__company_title"
+                                value:
+                                  fn: "lower"
+                                  column: "__company_official_title"
+                            - fn: "not"
+                              column:
+                                fn: "and"
+                                columns:
+                                  - fn: "contains"
+                                    column:
+                                      fn: "lower"
+                                      column: "__company_title"
+                                    value:
+                                      fn: "lower"
+                                      column: "__company_additional_title"
+                                  - fn: "contains"
+                                    column:
+                                      fn: "lower"
+                                      column: "__company_official_title"
+                                    value:
+                                      fn: "lower"
+                                      column: "__company_additional_title"
+                        value:
+                          fn: "concat"
+                          columns:
+                            - lit: "Другие названия: "
+                            - fn: "array_join"
+                              column: "__all_additional_company_titles"
+                              delimiter:
+                                lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "__all_additional_addresses"
+                        - fn: "gt"
+                          column:
+                            fn: "size"
+                            column: "__all_additional_addresses"
+                          value:
+                            lit: 0
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие адреса: "
+                        - fn: "array_join"
+                          column: "__all_additional_addresses"
+                          delimiter:
+                            lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "company_url"
+                      value:
+                        lit: "(i)[a-z]"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "url: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_url"
+                sep:
+                  lit: "; "
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                department: "department"
+                pan:
+                  fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column:
+                      fn: "base_raw_validation_udf"
+                      column: "bank_name"
+                  value: "pan"
+                bank_name:
+                  fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column:
+                      fn: "base_raw_validation_udf"
+                      column: "pan"
+                  value: "bank_name"
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "latest_actuality_date_udf"
+              columns:
+                - fn: "from_unixtime"
+                  column: "date_reg"
+                  date_format:
+                    lit: "yyyy-MM-dd"
+                - fn: "from_unixtime"
+                  column: "date_lastrequest"
+                  date_format:
+                    lit: "yyyy-MM-dd"
+                - "last_login"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+  - id: "accounting_suppliers_stuff"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_parts_ordered_udf"
+              columns:
+                - "lastname"
+                - fn: "case"
+                  condition:
+                    fn: "ne"
+                    column: "firstname"
+                    value: "lastname"
+                  value: "firstname"
+                - "middlename"
+            filter: true
+      phones:
+        columns:
+          __phone:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "split"
+                  column: "phone"
+                  pattern:
+                    lit: ",|;|\\bили\\b"
+          phones:
+            source:
+              fn: "phone_udf"
+              column:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "lt"
+                    column:
+                      fn: "length"
+                      column:
+                        fn: "regexp_replace"
+                        column: "__phone"
+                        pattern:
+                          lit: "\\D"
+                    value:
+                      lit: 8
+                  value:
+                    fn: "concat"
+                    columns:
+                      - "phone_code"
+                      - "__phone"
+                otherwise: "__phone"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "emails_udf"
+                  column:
+                    fn: "split"
+                    column: "email"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      address:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "and"
+              columns:
+                - fn: "eq"
+                  column:
+                    fn: "size"
+                    column: "__filter_company_titles"
+                  value:
+                    lit: 1
+                - fn: "eq"
+                  column:
+                    fn: "lower"
+                    column:
+                      fn: "try_element_at"
+                      column: "__filter_company_titles"
+                      value:
+                        lit: 1
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - lit: "частное лицо"
+                      - fn: "lower"
+                        column:
+                          fn: "name_parts_ordered_udf"
+                          columns:
+                            - "lastname"
+                            - fn: "case"
+                              condition:
+                                fn: "ne"
+                                column: "firstname"
+                                value: "lastname"
+                              value: "firstname"
+                            - "middlename"
+          address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "address_udf"
+                      column: "official_address"
+                    - fn: "address_udf"
+                      column: "address"
+                    - fn: "address_udf"
+                      column: "additional_address"
+            filter: true
+      works:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_parts_ordered_udf"
+                            columns:
+                              - "lastname"
+                              - fn: "case"
+                                condition:
+                                  fn: "ne"
+                                  column: "firstname"
+                                  value: "lastname"
+                                value: "firstname"
+                              - "middlename"
+          __company_official_address:
+            source:
+              fn: "address_udf"
+              column: "official_address"
+          __company_address:
+            source:
+              fn: "address_udf"
+              column: "address"
+          __company_additional_address:
+            source:
+              fn: "address_udf"
+              column: "additional_address"
+          __main_address:
+            source:
+              fn: "coalesce"
+              columns:
+                - "__company_official_address"
+                - "__company_address"
+                - "__company_additional_address"
+          __all_additional_addresses:
+            source:
+              fn: "array_compact"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array_remove"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "__company_official_address"
+                      - "__company_address"
+                      - "__company_additional_address"
+                  value: "__main_address"
+          works:
+            source:
+              fn: "work_udf"
+              company: "__company"
+              company_ru_inn: "company_inn"
+              company_ru_ogrn:
+                fn: "coalesce"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_ogrn"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_ogrn"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "__company_official_address"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "__company_official_address"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_details"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_details"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+              company_address: "__main_address"
+              comment:
+                fn: "concat_ws"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_alias"
+                        - fn: "isNotNull"
+                          column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "lower"
+                            column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "concat_ws"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - fn: "lower"
+                                column: "company_title"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие названия: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_alias"
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "__all_additional_addresses"
+                        - fn: "gt"
+                          column:
+                            fn: "size"
+                            column: "__all_additional_addresses"
+                          value:
+                            lit: 0
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие адреса: "
+                        - fn: "array_join"
+                          column: "__all_additional_addresses"
+                          delimiter:
+                            lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "company_url"
+                      value:
+                        lit: "(i)[a-z]"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "url: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_url"
+                sep:
+                  lit: "; "
+            filter: true
+  - id: "delivery_manager_suppliers_stuff"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "phones_udf"
+                  column:
+                    fn: "split"
+                    column: "phone"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      emails:
+        columns:
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "emails_udf"
+                  column:
+                    fn: "split"
+                    column: "email"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      address:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_udf"
+                            column: "name"
+          address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "address_udf"
+                      column: "official_address"
+                    - fn: "address_udf"
+                      column: "address"
+                    - fn: "address_udf"
+                      column: "additional_address"
+            filter: true
+      works:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_udf"
+                            column: "name"
+          __company_official_address:
+            source:
+              fn: "address_udf"
+              column: "official_address"
+          __company_address:
+            source:
+              fn: "address_udf"
+              column: "address"
+          __company_additional_address:
+            source:
+              fn: "address_udf"
+              column: "additional_address"
+          __main_address:
+            source:
+              fn: "coalesce"
+              columns:
+                - "__company_official_address"
+                - "__company_address"
+                - "__company_additional_address"
+          __all_additional_addresses:
+            source:
+              fn: "array_compact"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array_remove"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "__company_official_address"
+                      - "__company_address"
+                      - "__company_additional_address"
+                  value: "__main_address"
+          works:
+            source:
+              fn: "work_udf"
+              post: "position"
+              company: "__company"
+              company_ru_inn: "company_inn"
+              company_ru_ogrn:
+                fn: "coalesce"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_ogrn"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_ogrn"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "__company_official_address"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "__company_official_address"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_details"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_details"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+              company_address: "__main_address"
+              comment:
+                fn: "concat_ws"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_alias"
+                        - fn: "isNotNull"
+                          column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "lower"
+                            column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "concat_ws"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - fn: "lower"
+                                column: "company_title"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие названия: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_alias"
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "__all_additional_addresses"
+                        - fn: "gt"
+                          column:
+                            fn: "size"
+                            column: "__all_additional_addresses"
+                          value:
+                            lit: 0
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие адреса: "
+                        - fn: "array_join"
+                          column: "__all_additional_addresses"
+                          delimiter:
+                            lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "company_url"
+                      value:
+                        lit: "(i)[a-z]"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "url: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_url"
+                sep:
+                  lit: "; "
+            filter: true
+  - id: "delivery_contact_suppliers_stuff"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "phones_udf"
+                  column:
+                    fn: "split"
+                    column: "phone"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      emails:
+        columns:
+          __emails:
+            source:
+              fn: "concat_ws"
+              columns:
+                - "email_1"
+                - "email_2"
+              sep:
+                lit: ","
+          emails:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "emails_udf"
+                  column:
+                    fn: "split"
+                    column: "__emails"
+                    pattern:
+                      lit: ",|;|\\bили\\b"
+            filter: true
+      address:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_udf"
+                            column: "name"
+          address:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "address_udf"
+                      column: "official_address"
+                    - fn: "address_udf"
+                      column: "address"
+                    - fn: "address_udf"
+                      column: "additional_address"
+            filter: true
+      works:
+        entities:
+          - "works"
+          - "persons"
+        columns:
+          __company:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "concat_ws"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column:
+                            fn: "lower"
+                            column: "company_title"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - lit: " "
+                      value: "company_prefix"
+                    - "company_title"
+                - "company_alias"
+          __filter_company_titles:
+            source:
+              fn: "array_distinct"
+              column:
+                fn: "array_compact"
+                column:
+                  fn: "array"
+                  columns:
+                    - "__company"
+                    - fn: "base_raw_validation_udf"
+                      column: "company_alias"
+            filter:
+              fn: "not"
+              column:
+                fn: "and"
+                columns:
+                  - fn: "eq"
+                    column:
+                      fn: "size"
+                      column: "__filter_company_titles"
+                    value:
+                      lit: 1
+                  - fn: "eq"
+                    column:
+                      fn: "lower"
+                      column:
+                        fn: "try_element_at"
+                        column: "__filter_company_titles"
+                        value:
+                          lit: 1
+                    value:
+                      fn: "concat_ws"
+                      columns:
+                        - lit: "частное лицо"
+                        - fn: "lower"
+                          column:
+                            fn: "name_udf"
+                            column: "name"
+          __company_official_address:
+            source:
+              fn: "address_udf"
+              column: "official_address"
+          __company_address:
+            source:
+              fn: "address_udf"
+              column: "address"
+          __company_additional_address:
+            source:
+              fn: "address_udf"
+              column: "additional_address"
+          __main_address:
+            source:
+              fn: "coalesce"
+              columns:
+                - "__company_official_address"
+                - "__company_address"
+                - "__company_additional_address"
+          __all_additional_addresses:
+            source:
+              fn: "array_compact"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array_remove"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "__company_official_address"
+                      - "__company_address"
+                      - "__company_additional_address"
+                  value: "__main_address"
+          works:
+            source:
+              fn: "work_udf"
+              post: "position"
+              company: "__company"
+              company_ru_inn: "company_inn"
+              company_ru_ogrn:
+                fn: "coalesce"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_ogrn"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_ogrn"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "__company_official_address"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "__company_official_address"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "banking_details"
+                      value:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *\\d{13}\\b"
+                    value:
+                      fn: "regexp_extract"
+                      column: "banking_details"
+                      pattern:
+                        lit: "\\b[Оо][Гг][Рр][Нн] *:? *(\\d{13})\\b"
+                      index:
+                        lit: 1
+              company_address: "__main_address"
+              comment:
+                fn: "concat_ws"
+                columns:
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "company_alias"
+                        - fn: "isNotNull"
+                          column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "lower"
+                            column: "company_title"
+                        - fn: "ne"
+                          column:
+                            fn: "lower"
+                            column: "company_alias"
+                          value:
+                            fn: "concat_ws"
+                            columns:
+                              - fn: "lower"
+                                column: "company_prefix"
+                              - fn: "lower"
+                                column: "company_title"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие названия: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_alias"
+                  - fn: "case"
+                    condition:
+                      fn: "and"
+                      columns:
+                        - fn: "isNotNull"
+                          column: "__all_additional_addresses"
+                        - fn: "gt"
+                          column:
+                            fn: "size"
+                            column: "__all_additional_addresses"
+                          value:
+                            lit: 0
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "Другие адреса: "
+                        - fn: "array_join"
+                          column: "__all_additional_addresses"
+                          delimiter:
+                            lit: ", "
+                  - fn: "case"
+                    condition:
+                      fn: "rlike"
+                      column: "company_url"
+                      value:
+                        lit: "(i)[a-z]"
+                    value:
+                      fn: "concat"
+                      columns:
+                        - lit: "url: "
+                        - fn: "base_raw_validation_udf"
+                          column: "company_url"
+                sep:
+                  lit: "; "
+            filter: true
+gold:
+  ids:
+    - id: "admins"
+    - id: "managers"
+    - id: "stuff"
+    - id: "accounting_suppliers_stuff"
+    - id: "delivery_manager_suppliers_stuff"
+    - id: "delivery_contact_suppliers_stuff"
+  transformations:
+    op: "groupBy"
+    columns:
+      - "names"
+      - "birth_date"
+      - "accounts"
+    positive:
+      fn: "and"
+      columns:
+        - fn: "isNotNull"
+          column: "accounts"
+        - fn: "not"
+          column:
+            fn: "isin"
+            column:
+              fn: "try_element_at"
+              column: "names"
+              value:
+                lit: 1
+            values:
+              - lit: "Обед.Ру"
+              - lit: "Назарова Валентина"
+              - lit: "Сотрудник Яндекса"
+              - lit: "Wowspace"
+              - lit: "Захаров Юрий Сергеевич"
+              - lit: "Чистякова Вероника Владимировна"
+              - lit: "Ооо Сапплемент Групп"
+  remain: [ "accounts", "phones", "emails" ]

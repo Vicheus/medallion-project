@@ -1,0 +1,88 @@
+sourceId: "index_0682"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0682/raw/rtoperator_ru.csv"
+    options:
+      inferSchema: false
+      sep: "|"
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+    phones:
+      columns:
+        phone: "Номер телефона"
+    documents:
+      columns:
+        passport: "Паспорт"
+    raw_metadata:
+      columns:
+        comment: "Комментарий"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "document_udf"
+            type:
+              lit: "паспорт гражданина рф"
+            serial: "passport"
+      filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                comment: "comment"
+            filter: true
+gold:
+  transformations:
+    - op: "groupBy"
+      columns:
+        - "birth_date"
+        - "names"
+        - "phones"
+        - "documents"
+      positive:
+        fn: "or"
+        columns:
+          - fn: "isNotNull"
+            column: "phones"
+          - fn: "isNotNull"
+            column: "documents"
+    - op: "withColumn"
+      column: "raw_metadata"
+      function:
+        fn: "slice"
+        column: "raw_metadata"
+        len:
+          lit: 10
+  io:
+    write:
+      type: "coalesce_size"
+      count: 1024
+  remain: [ "phones", "documents" ]
+  

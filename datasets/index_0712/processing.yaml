@@ -1,0 +1,54 @@
+sourceId: "index_0712"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/forces/index_0712/raw/ПЛЕН РФ ВЧ 12676.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+    trimValues: true
+  entities:
+    persons:
+      columns:
+        name: "name"
+        birth_date: "birth_date"
+        birth_place: "birth_place"
+    forces:
+      columns:
+        unit_name: "unit_name"
+        unit_code: "unit_code"
+        rank: "rank"
+        position: "position"
+        tag_number: "tag_number"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column: "birth_place"
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank: "rank"
+            unit_code: "unit_code"
+            unit_name: "unit_name"
+            position: "position"
+          filter: true
+gold:
+  remain: [ "forces" ]

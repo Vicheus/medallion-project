@@ -1,0 +1,81 @@
+sourceId: "index_0655"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/index_0655/raw/el-polis.ru 09.2023/el-polis.ru 08.2019-09.2023.csv"
+    options:
+      inferSchema: false
+      sep: ","
+      mode: "PERMISSIVE"
+  entities:
+    persons:
+      columns:
+        first_name: "Имя"
+        last_name: "Фамилия"
+        middle_name: "Отчество"
+        birth_date: "Дата рождения"
+        sex: "Пол"
+    emails:
+      columns:
+        email: "Почта"
+    phones:
+      columns:
+        phone: "Номер телефона"
+    raw_metadata:
+      columns:
+        first_driving_experience: "Первый опыт вождения"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y.%m.%d"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"    
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Первый опыт вождения: "first_driving_experience"
+            filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+        - "sex"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

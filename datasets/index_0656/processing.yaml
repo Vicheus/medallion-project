@@ -1,0 +1,99 @@
+sourceId: "index_0656"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0656/raw/pandashop_ru.csv"
+    options:
+      inferSchema: false
+    replaceWithNone: [ "<blank>", "NULL" ]
+  entities:
+    persons:
+      columns:
+        name: "name"
+    phones:
+      columns:
+        phone: "phone"
+    address:
+      columns:
+        street: "street"
+        housenumber: "housenumber"
+        room: "room"
+    actuality:
+      columns:
+        created: "created"
+        updated: "updated"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"    
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+           fn: "address_udf"
+           column:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "street"
+            value:
+              fn: "concat_ws"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column: "street"
+                  value:
+                    fn: "concat"
+                    columns:
+                      - lit: "ул. "
+                      - "street"
+                - fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column: "housenumber"
+                  value:
+                    fn: "concat"
+                    columns:
+                      - lit: "д. "
+                      - "housenumber"
+                - "room"
+          filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - fn: "from_unixtime"
+                column: "created"
+              - fn: "from_unixtime"
+                column: "updated"
+          filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: gt
+        column:
+            fn: size
+            column: "phones"
+        value:
+            lit: 0
+  

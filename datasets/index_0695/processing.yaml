@@ -1,0 +1,96 @@
+sourceId: "index_0695"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0695/raw/сrурtорrо.ru - @StormBaseAdapter.csv"
+    options:
+      inferSchema: false
+      mode: "PERMISSIVE"
+      multiline: "true"
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "ФИО"
+        birth_date: "Дата рождения"
+        birth_place: "Место рождения"
+    phones:
+      columns:
+        phone: "Номер телефона"
+    documents:
+        columns:
+          serial_passport: "Паспорт"
+          authority_passport: "Кем выдан паспорт"
+          authority_code_passport: "Код подразделения"
+          date_issue_passport: "Когда выдан паспорт"
+          snils: "СНИЛС"
+    raw_metadata:
+        columns:
+          cryptoprovider: "Криптопровайдер"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column: "birth_place"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "document_udf"
+                  type:
+                    lit: "паспорт гражданина рф"
+                  serial: "serial_passport"
+                  date_issue: "date_issue_passport"
+                  authority: "authority_passport"
+                  authority_code: "authority_code_passport"
+                  date_format:
+                    lit: "%Y-%m-%d"
+                - fn: "document_udf"
+                  type:
+                    lit: "снилс"
+                  serial: "snils"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                crypto_provider: "cryptoprovider"
+            filter: true
+gold:
+  remain: [ "phones", "documents" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+        - "birth_place"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

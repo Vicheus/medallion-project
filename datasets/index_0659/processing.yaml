@@ -1,0 +1,83 @@
+sourceId: "index_0659"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0659/raw/ormatek.com 08.2024.csv"
+    options:
+      inferSchema: false
+      sep: "\t"
+  entities:
+    persons:
+      columns:
+        name: "name"
+        birth_date: "birthdate"
+    emails:
+      columns:
+        email: "email"
+    phones:
+      columns:
+        phone: "phone"
+    address:
+      columns:
+        address: "address"
+    actuality:
+      columns:
+        last_login: "last_login"
+        date_register: "date_register"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"    
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+            fn: "array"
+            columns:
+              fn: "address_udf"
+              column: "address"
+          filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "last_login"
+              - "date_register"
+          filter: true
+gold:
+  remain: ["phones"]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

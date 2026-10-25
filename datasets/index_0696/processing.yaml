@@ -1,0 +1,97 @@
+sourceId: "index_0696"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0696/raw/dоzаrрlаti.соm.csv"
+    options:
+      inferSchema: false
+      sep: ";"
+  entities:
+    persons:
+      columns:
+        first_name: "Имя"
+        last_name: "Фамилия"
+        middle_name: "Отчество"
+        birth_date: "Дата рождения"
+    address:
+      columns:
+        address: "Адрес регистрации"
+    phones:
+      columns:
+        phone: "Мобильный телефон"
+    works:
+        columns:
+          post: "Должность"
+          company_name: "Наименование организации"
+    actuality:
+        columns:
+          record_date: "Дата"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    address:
+      columns:
+        address:
+          source:
+            fn: "address_udf"
+            column: "address"
+          filter: true
+    works:
+      columns:
+        works:
+          source:   
+            fn: "work_udf"
+            post: "post"
+            company: 
+              fn: "when"
+              cases:
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "rlike"
+                    column: "company_name"
+                    value:
+                      lit: " самозанятый|Не работает/Пенсионер|Индивидуальный предприниматель|индивидуальный предприниматель"
+                value: "company_name"
+          filter: true
+    actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column: "record_date"
+              date_format:
+                lit: "%Y-%m-%d"
+            filter: true
+gold:
+  remain: [ "phones", "address" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "birth_date"
+  

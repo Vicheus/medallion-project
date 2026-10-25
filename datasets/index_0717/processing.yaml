@@ -1,0 +1,1409 @@
+sourceId: "index_0717"
+
+bronze:
+  - id: "1"
+    read:
+      path: "20260617-150802-950-file-Дохлі орки_ТГ_Горюшко.csv"
+      options:
+        inferSchema: false
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name1: "ФИО"
+          name2: "Горюшко"
+      links:
+        columns:
+          death_original_source: "Посилання на першоджерело"
+          death_telegram_source: "Посилання ТГ"
+      address:
+        columns:
+          region: "Область/край/республіка"
+          city: "Населений пункт"
+      forces:
+        columns:
+          rank: "Звання"
+          unit_name: "Підрозділ"
+      raw_metadata:
+        columns:
+          notification_date: "Дата повідомлення"
+          interment_date: "Дата поховання"
+          death_region: "Загибель (район)"
+          death_place: "Загибель (населений пункт)"
+          recruited: "Завербований"
+          map: "Мапа Google"
+          alternative_map: "Альтернативна мапа"
+      common:
+        columns:
+          birth_date: "Рік народження"
+          death_date: "Дата загибелі"
+          category: "Статус"
+          notes: "Нюанси"
+  - id: "2"
+    read:
+      path: "20260617-150802-950-file-Дохлі орки_ТГ_Горюшко2.csv"
+      options:
+        inferSchema: false
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name1: "ФИО (по-русски)"
+          name2: "ФИО (язык оригинала или англ транслит)"
+      links:
+        columns:
+          links: "Ссылки"
+      address:
+        columns:
+          country: "Страна"
+          region: "Регион"
+          city: "Населённый пункт"
+      forces:
+        columns:
+          rank: "Звание"
+          unit_name: "Подразделение"
+      common:
+        columns:
+          birth_date: "Год рождения"
+          death_date: "Дата смерти"
+          category: "Статус"
+          notes: "Примечания"
+      raw_metadata:
+        columns:
+          notification_date: "Дата сообщения"
+          interment_date: "Дата похорон"
+          death_region: "Погиб (район)"
+          death_place: "Погиб (нп)"
+          recruited: "_c16"
+          map: "_c17"
+          alternative_map: "_c18"
+silver:
+  - id: "1"
+    entities:
+      persons:
+        entities:
+          - "persons"
+          - "common"
+        columns:
+          __cleaned_name1:
+            source:
+              fn: "regexp_replace"
+              column:
+                fn: "trim"
+                column:
+                  fn: "regexp_replace"
+                  column:
+                    fn: "regexp_replace"
+                    column: "name1"
+                    pattern:
+                      lit: "^\\d+\\."
+                  pattern:
+                    lit: "\\(.*?\\)"
+                  replacement:
+                    lit: " "
+              pattern:
+                lit: "\\s+"
+              replacement:
+                lit: " "
+          __cleaned_name1_braces:
+            source:
+              fn: "trim"
+              column:
+                fn: "regexp_extract"
+                column: "name1"
+                pattern:
+                  lit: "\\((.*?)\\)"
+                index:
+                  lit: 1
+              symbols:
+                lit: " ()"
+          __cleaned_name2:
+            source:
+              fn: "regexp_replace"
+              column:
+                fn: "trim"
+                column:
+                  fn: "regexp_replace"
+                  column:
+                    fn: "regexp_replace"
+                    column: "name2"
+                    pattern:
+                      lit: "^\\d+\\."
+                  pattern:
+                    lit: "\\(.*?\\)"
+                  replacement:
+                    lit: " "
+              pattern:
+                lit: "\\s+"
+              replacement:
+                lit: " "
+          __cleaned_name2_braces:
+            source:
+              fn: "trim"
+              column:
+                fn: "regexp_extract"
+                column: "name2"
+                pattern:
+                  lit: "\\((.*?)\\)"
+                index:
+                  lit: 1
+              symbols:
+                lit: " ()?"
+          names:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "name_udf"
+                      column: "__cleaned_name1"
+                    - fn: "name_udf"
+                      column: "__cleaned_name1_braces"
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "__cleaned_name1"
+                          value: "__cleaned_name2"
+                      value:
+                        fn: "name_udf"
+                        column: "__cleaned_name2"
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "startswith"
+                          column: "__cleaned_name1"
+                          value:
+                            fn: "concat"
+                            columns:
+                              - "__cleaned_name2_braces"
+                              - lit: " "
+                      value:
+                        fn: "name_udf"
+                        column: "__cleaned_name2_braces"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+              date_format:
+                lit: "%d.%m.%Y"
+          death_date:
+            source:
+              fn: "death_date_udf"
+              column: "death_date"
+              birth_date: "birth_date"
+              date_format:
+                lit: "%d.%m.%Y"
+          sex:
+            source:
+              fn: "sex_udf"
+              column: "category"
+      links:
+        entities:
+          - "links"
+          - "raw_metadata"
+        columns:
+          __link:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "concat"
+                  columns:
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column: "death_original_source"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column: "death_telegram_source"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "alternative_map"
+                              value:
+                                lit: "http"
+                            value: "alternative_map"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "map"
+                              value:
+                                lit: "http"
+                            value: "map"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "recruited"
+                              value:
+                                lit: "http"
+                            value: "recruited"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+          links:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "__link"
+                value:
+                  lit: "^http"
+              value:
+                fn: "link_udf"
+                title:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://x\\.com/"
+                      value:
+                        lit: "X"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://(m\\.)?vk\\.(com|ru)/"
+                      value:
+                        lit: "Vk"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://t\\.me/"
+                      value:
+                        lit: "Telegram"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://(m\\.)?ok\\.ru/"
+                      value:
+                        lit: "Ok"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://archive\\."
+                      value:
+                        lit: "Web Archive"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://youtu\\.be/"
+                      value:
+                        lit: "YouTube"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://myrotvorets\\."
+                      value:
+                        lit: "Myrotvorets"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://t\\.co/"
+                      value:
+                        lit: "X link shortener"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://yadocent\\.livejournal\\.com/"
+                      value:
+                        lit: "Yadocent Livejournal"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://200\\.zona\\.media/"
+                      value:
+                        lit: "200 Zona Media"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://t\\.rbc\\.ru/"
+                      value:
+                        lit: "Rbc"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^t.me/poisk_in_ua/"
+                      value:
+                        lit: "Telegram"
+                  otherwise:
+                    fn: "initcap"
+                    column:
+                      fn: "regexp_extract"
+                      column: "__link"
+                      pattern:
+                        lit: "^(?:https?://)?(?:(?:www|ru|i|m|nn)\\.)?([^./]+)"
+                      index:
+                        lit: 1
+                link: "__link"
+            filter: true
+      address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "region"
+                  - "city"
+            filter: true
+      forces:
+        entities:
+          - "forces"
+          - "common"
+        columns:
+          __position:
+            source:
+              fn: "case"
+              condition:
+                fn: "or"
+                columns:
+                  - fn: "startswith"
+                    column: "unit_name"
+                    value:
+                      lit: "Заместитель"
+                  - fn: "startswith"
+                    column: "unit_name"
+                    value:
+                      lit: "Начальник"
+                  - fn: "startswith"
+                    column: "unit_name"
+                    value:
+                      lit: "Помощник"
+              value: "unit_name"
+          __unit_code:
+            source:
+              fn: "case"
+              condition:
+                fn: "startswith"
+                column: "unit_name"
+                value:
+                  lit: "в/ч"
+              value: "unit_name"
+          __unit_name:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNull"
+                    column: "__position"
+                  - fn: "isNull"
+                    column: "__unit_code"
+              value: "unit_name"
+          __category:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "startswith"
+                  column:
+                    fn: "lower"
+                    column: "category"
+                  value:
+                    lit: "чмобик"
+                value:
+                  lit: "мобилизованный"
+              otherwise: "category"
+          forces:
+            source:
+              fn: "force_udf"
+              rank: "rank"
+              unit_code:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNull"
+                        column: "__unit_code"
+                      - fn: "startswith"
+                        column: "notes"
+                        value:
+                          lit: "в/ч"
+                      - fn: "not"
+                        column:
+                          fn: "endswith"
+                          column: "notes"
+                          value:
+                            lit: "?"
+                  value: "notes"
+                otherwise: "__unit_code"
+              unit_name: "__unit_name"
+              category:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNull"
+                        column: "__category"
+                      - fn: "contains"
+                        column:
+                          fn: "lower"
+                          column: "notes"
+                        value:
+                          lit: "контракт"
+                  value:
+                    lit: "контракт"
+                otherwise: "__category"
+              position:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "isNull"
+                    column: "__position"
+                  value:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "isin"
+                          column: "notes"
+                          values:
+                            - lit: "танкист"
+                            - lit: "штурмовик"
+                            - lit: "снайпер"
+                            - lit: "сапер"
+                            - lit: "санитар"
+                            - lit: "разведчик-минер"
+                            - lit: "радист Ил-76"
+                            - lit: "начштаба"
+                            - lit: "вертолетчик"
+                        value: "notes"
+                      - condition:
+                          fn: "rlike"
+                          column: "notes"
+                          value:
+                            lit: "^(штурман|стрелок|руководитель|ротный|радиотелефонист|помощник|пилот|офицер|Офицер|Передовой|передовой|Начальник|начальник|наводчик|командир|комбриг|комполка|комбат|комендант|Инженер|Заместитель|заместитель|Борттехник|Бортовой|БПЛА|старший летчик|старший оператор|старший механик|фельдшер)"
+                        value:
+                          fn: "regexp_extract"
+                          column: "notes"
+                          pattern:
+                            lit: "^([^,;]*)"
+                          index:
+                            lit: 1
+                      - condition:
+                          fn: "startswith"
+                          column: "notes"
+                          value:
+                            lit: "пілот "
+                        value:
+                          fn: "regexp_extract"
+                          column:
+                            fn: "regexp_replace"
+                            column: "notes"
+                            pattern:
+                              lit: "пілот"
+                            replacement:
+                              lit: "пилот"
+                          pattern:
+                            lit: "^([^,;]*)"
+                          index:
+                            lit: 1
+                      - condition:
+                          fn: "eq"
+                          column: "notes"
+                          value:
+                            lit: "нач. розвідки ПВК Вагнер"
+                        value:
+                          lit: "нач. разведки ЧВК Вагнер"
+                      - condition:
+                          fn: "eq"
+                          column: "notes"
+                          value:
+                            lit: "нач. бронетанкової служби"
+                        value:
+                          lit: "нач. бронетанковой службы"
+                      - condition:
+                          fn: "eq"
+                          column: "notes"
+                          value:
+                            lit: "нач артилерії"
+                        value:
+                          lit: "нач артиллерии"
+                      - condition:
+                          fn: "eq"
+                          column: "notes"
+                          value:
+                            lit: "Бортмеханік Ми-8"
+                        value:
+                          lit: "Борттехник Ми-8"
+                      - condition:
+                          fn: "rlike"
+                          column: "notes"
+                          value:
+                            lit: "^(нач)"
+                        value:
+                          fn: "regexp_extract"
+                          column: "notes"
+                          pattern:
+                            lit: "^([^,;]*)"
+                          index:
+                            lit: 1
+                otherwise: "__position"
+            filter: true
+      raw_metadata:
+        entities:
+          - "raw_metadata"
+          - "common"
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                birth_year:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "birth_date"
+                    value:
+                      lit: "^(\\d{1,2}\\.)?\\d{4}$"
+                  value: "birth_date"
+                death_date:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "death_date"
+                    value:
+                      lit: "^(\\d{1,2}\\.)?\\d{2}-?\\d{2}$"
+                  value: "death_date"
+                death_notification_date: "notification_date"
+                interment_date: "interment_date"
+                death_region: "death_region"
+                death_place: "death_place"
+                status:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "endswith"
+                        column:
+                          fn: "lower"
+                          column: "category"
+                        value:
+                          lit: "священник"
+                      value:
+                        lit: "священник"
+                    - condition:
+                        fn: "isin"
+                        column:
+                          fn: "lower"
+                          column: "category"
+                        values:
+                          - lit: "священник"
+                          - lit: "зк"
+                          - lit: "доброволец"
+                          - lit: "вдв"
+                      value: "category"
+                notes:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "вместе с 34263, только соцсети"
+                      value:
+                        lit: ""
+                    - condition:
+                        fn: "and"
+                        columns:
+                          - fn: "rlike"
+                            column: "notes"
+                            value:
+                              lit: "^(экипаж|сын |племянник|отец |дядя |герой|вместе|Вместе|брат|Чечня|прапорщик|умер|Крым|ранен|оф\\.|Сирия|Сводный|Племянник|Капитан|Дядя |Донбасс|Двоюродный|Брат|Аэродром|Возможно)"
+                          - fn: "not"
+                            column:
+                              fn: "rlike"
+                              column: "notes"
+                              value:
+                                lit: "^[Вв]месте (с ) \\d+\\.?$"
+                      value:
+                        fn: "regexp_replace"
+                        column:
+                          fn: "regexp_replace"
+                          column:
+                            fn: "regexp_replace"
+                            column: "notes"
+                            pattern:
+                              lit: "\\d+\\. ?"
+                          pattern:
+                            lit: "[Вв]месте (с )?\\d+\\.?$"
+                        pattern:
+                          lit: "[Вв]месте (с )?\\d+\\.,"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^(комполка|штурман|начальник|нач |нач\\.|комбат|заместитель|пилот|Пилот|Контракт,|Банер|БПЛА-шник|военврач|пілот|Передовой|командир|старший летчик|старший оператор|старший механик)"
+                      value:
+                        fn: "when"
+                        cases:
+                          condition:
+                            fn: "rlike"
+                            column: "notes"
+                            value:
+                              lit: ",;"
+                          value:
+                            fn: "regexp_replace"
+                            column:
+                              fn: "regexp_replace"
+                              column:
+                                fn: "regexp_replace"
+                                column: "notes"
+                                pattern:
+                                  lit: "^[^,;]*[,;]"
+                              pattern:
+                                lit: "\\d+\\. ?"
+                            pattern:
+                              lit: "[Вв]месте (с )?\\d+\\.?$"
+                        otherwise:
+                          lit: ""
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^(Полковник|Майор) "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "у відставці"
+                        replacement:
+                          lit: "в отставке"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^(экс-|тел|штурм |самолет|подполковник|полковник|генерал|майор|лейтенант|крушение|капитан|Судья|Шторм|штурмов|школа|шахта|чемпион|футболист|утонул|удар|убит|у |турбаза|террикон|танковый|старший|старшина|стало|самоубийство|сбит|ресторан|ракетный|район|разжалованый|призван|при|пресс|командирован|похоронен|построение|попал|погиб|по|петушиная|пассажир|отсидел|органы|несчастный|на |мотостр|мост|младший|минировал|мародер|лидер|либо|м\\.|крымский|контужен|колонна |коксохим|казак|или |зарыт|заживо|завод|десант|демобилизованный|дезертир|дважды|возможно|во |внук|вертухай|вертолетная|в |бывший|больница|комендатура|болезнь|боксер|бой|блогер|банда|ахмат|атака|аеродром|авіаремонтник|Южная|Шутрман|Штурмовой|ЧВК|Царская|ЦАР|Ушел|Уточнить|Упал|Умер|УкрДРГ|Удар|Труба|Точка|Таджикистан|ТЦ|ТАКр|Летчик|Стрелковая|Срочно|Срочник|Мотострелковый|мотострелковый|Спецназ|Служил|Скорее|СБС|Роскосмос|Родился|Раптор|Ранен|Ранее|Район|Разгром|РЭБщик|Контракт |РВиА|Приднестровье|При |Предатель|Похоронен|Построение|Полицейский|Полигон|Подполковник|По |Перестрелка|Переподписал|Пантеон|ПТУ|ПК|ПВО|Осужден|ОМОН|Ночные|Никитовский|Мост|Ми-|МПК|МВД|Ливан|Либо|Лейтенант|ЛДПР|Крушение|Коблево|Карабах|Казахстан|Казак|Или|Здание|Зарыт|ЗК|Живой|Депутат|Дамба|ДШО|ДРГ|ДКА|Грузия|Гостомель|Генерал|Вагнеровский|ВДВ|В |Военная|Буча|Босния|Беслан|БДК|БАРС|Ахмат|Афганистан|Актер|Абхазия|АРК|АКХЗ|А-50|Storm|HIMARS|ATACMS|89-|810-|81-|71 |6 |5|30|1АК|17 |15 |150|14\\.4|134-|1308|12 |114 |106 |1 ТА|09\\.04)"
+                      value: "notes"
+                    - condition:
+                        fn: "startswith"
+                        column: "notes"
+                        value:
+                          lit: "https://"
+                      value: "notes"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^служив "
+                      value:
+                        fn: "regexp_replace"
+                        column:
+                          fn: "regexp_replace"
+                          column:
+                            fn: "regexp_replace"
+                            column: "notes"
+                            pattern:
+                              lit: "ЗСУ"
+                            replacement:
+                              lit: "ВСУ"
+                          pattern:
+                            lit: " у "
+                          replacement:
+                            lit: " в "
+                        pattern:
+                          lit: "служив"
+                        replacement:
+                          lit: "служил"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^розрахунок "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "розрахунок"
+                        replacement:
+                          lit: "расчёт"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^Сєпар"
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "Сєпар"
+                        replacement:
+                          lit: "сепар"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^розбита "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "розбита колонна|розбита колона"
+                        replacement:
+                          lit: "разбита колонна"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "підривав Каховську ГЕС"
+                      value:
+                        lit: "подрывал Каховскую ГЭС"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "конвой в Іл-76"
+                      value:
+                        lit: "конвой в Ил-76"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "антимайданівець"
+                      value:
+                        lit: "антимайдановец"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "ППО"
+                      value:
+                        lit: "ПВО"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^охорона"
+                      value:
+                        lit: "охрана комбината Электрохимприбор"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^або "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "^або "
+                        replacement:
+                          lit: "или"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^батько "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "^батько "
+                        replacement:
+                          lit: "отец "
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^в/ч.+\\?$"
+                      value: "notes"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^[Пп]озивний "
+                      value:
+                        fn: "regexp_replace"
+                        column: "notes"
+                        pattern:
+                          lit: "^[Пп]озивний "
+                        replacement:
+                          lit: "позывной "
+                recruited:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "eq"
+                        column: "recruited"
+                        value:
+                          lit: "самогубець"
+                      value:
+                        lit:
+                    - condition:
+                        fn: "eq"
+                        column: "recruited"
+                        value:
+                          lit: "потонув"
+                      value:
+                        lit: "утонул"
+                    - condition:
+                        fn: "eq"
+                        column: "recruited"
+                        value:
+                          lit: "Кримінальний авторитет"
+                      value:
+                        lit: "Криминальный авторитет"
+                    - condition:
+                        fn: "eq"
+                        column: "recruited"
+                        value:
+                          lit: "нач розвідки бригади"
+                      value:
+                        lit: "нач разведки бригады"
+                    - condition:
+                        fn: "rlike"
+                        column: "recruited"
+                        value:
+                          lit: "^(кладовище|Кладовище|залишився|Звідки|Зарили|Заритий|Дубль)"
+                      value:
+                        lit: ""
+                  otherwise:
+                    fn: "case"
+                    condition:
+                      fn: "not"
+                      column:
+                        fn: "startswith"
+                        column: "recruited"
+                        value:
+                          lit: "http"
+                    value: "recruited"
+                google_map:
+                  fn: "when"
+                  cases:
+                    condition:
+                      fn: "eq"
+                      column: "map"
+                      value:
+                        lit: "перший загиблий мобік"
+                    value:
+                      lit: "первый погибший мобилизированный"
+                  otherwise:
+                    fn: "case"
+                    condition:
+                      fn: "not"
+                      column:
+                        fn: "startswith"
+                        column: "map"
+                        value:
+                          lit: "http"
+                    value: "map"
+                alternative_map:
+                  fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "startswith"
+                      column: "alternative_map"
+                      value:
+                        lit: "http"
+                  value: "alternative_map"
+            filter: true
+  - id: "2"
+    entities:
+      persons:
+        entities:
+          - "persons"
+          - "common"
+        columns:
+          __cleaned_name:
+            source:
+              fn: "regexp_replace"
+              column:
+                fn: "trim"
+                column:
+                  fn: "regexp_replace"
+                  column: "name1"
+                  pattern:
+                    lit: "\\(.*?\\)"
+                  replacement:
+                    lit: " "
+              pattern:
+                lit: "\\s+"
+              replacement:
+                lit: " "
+          __cleaned_name_braces:
+            source:
+              fn: "trim"
+              column:
+                fn: "regexp_extract"
+                column: "name1"
+                pattern:
+                  lit: "\\((.*?)\\)"
+                index:
+                  lit: 1
+              symbols:
+                lit: " ()"
+          names:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "name_udf"
+                      column: "__cleaned_name"
+                    - fn: "name_udf"
+                      column: "__cleaned_name_braces"
+                    - fn: "name_udf"
+                      column: "name2"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+              date_format:
+                lit: "%d.%m.%Y"
+          death_date:
+            source:
+              fn: "death_date_udf"
+              column: "death_date"
+              birth_date: "birth_date"
+              date_format:
+                lit: "%d.%m.%Y"
+          sex:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "category"
+                value:
+                  lit: "[Жж]енщина"
+              value:
+                fn: "sex_udf"
+                column: "category"
+      links:
+        entities:
+          - "links"
+          - "raw_metadata"
+        columns:
+          __link:
+            source:
+              fn: "explode"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "concat"
+                  columns:
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column: "links"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "alternative_map"
+                              value:
+                                lit: "http"
+                            value: "alternative_map"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "map"
+                              value:
+                                lit: "http"
+                            value: "map"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+                    - fn: "coalesce"
+                      columns:
+                        - fn: "split"
+                          column:
+                            fn: "case"
+                            condition:
+                              fn: "startswith"
+                              column: "recruited"
+                              value:
+                                lit: "http"
+                            value: "recruited"
+                          pattern:
+                            lit: ", | "
+                        - fn: "empty_array"
+          links:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "__link"
+                value:
+                  lit: "^http"
+              value:
+                fn: "link_udf"
+                title:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://x\\.com/"
+                      value:
+                        lit: "X"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://(m\\.)?vk\\.(com|ru)/"
+                      value:
+                        lit: "Vk"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://t\\.me/"
+                      value:
+                        lit: "Telegram"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://(m\\.)?ok\\.ru/"
+                      value:
+                        lit: "Ok"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://archive\\."
+                      value:
+                        lit: "Web Archive"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://youtu\\.be/"
+                      value:
+                        lit: "YouTube"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://myrotvorets\\."
+                      value:
+                        lit: "Myrotvorets"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://t\\.co/"
+                      value:
+                        lit: "X link shortener"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://yadocent\\.livejournal\\.com/"
+                      value:
+                        lit: "Yadocent Livejournal"
+                    - condition:
+                        fn: "rlike"
+                        column: "__link"
+                        value:
+                          lit: "^https?://200\\.zona\\.media/"
+                      value:
+                        lit: "200 Zona Media"
+                  otherwise:
+                    fn: "initcap"
+                    column:
+                      fn: "regexp_extract"
+                      column: "__link"
+                      pattern:
+                        lit: "^(?:https?://)?(?:(?:www|ru|i)\\.)?([^./]+)"
+                      index:
+                        lit: 1
+                link: "__link"
+            filter: true
+      address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "country"
+                  - "region"
+                  - "city"
+            filter: true
+      forces:
+        entities:
+          - "forces"
+          - "common"
+        columns:
+          __position:
+            source:
+              fn: "case"
+              condition:
+                fn: "startswith"
+                column: "unit_name"
+                value:
+                  lit: "Заместитель"
+              value: "unit_name"
+          __unit_code:
+            source:
+              fn: "case"
+              condition:
+                fn: "rlike"
+                column: "unit_name"
+                value:
+                  lit: "^в/ч \\d"
+              value: "unit_name"
+          __unit_name:
+            source:
+              fn: "case"
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNull"
+                    column: "__position"
+                  - fn: "isNull"
+                    column: "__unit_code"
+              value: "unit_name"
+          __category:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "isin"
+                  column:
+                    fn: "lower"
+                    column: "category"
+                  values:
+                    - lit: "чмобик"
+                    - lit: "мобик"
+                    - lit: "мобик, женщина"
+                value:
+                  lit: "мобилизованный"
+              otherwise: "category"
+          forces:
+            source:
+              fn: "force_udf"
+              rank: "rank"
+              unit_code: "__unit_code"
+              unit_name: "__unit_name"
+              category:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNull"
+                        column: "__category"
+                      - fn: "contains"
+                        column:
+                          fn: "lower"
+                          column: "notes"
+                        value:
+                          lit: "контракт"
+                  value:
+                    lit: "контракт"
+                otherwise: "__category"
+              position:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "isNull"
+                    column: "__position"
+                  value:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "rlike"
+                          column: "notes"
+                          value:
+                            lit: "^(пилот|военврач|фельдшер|Заместитель)"
+                        value: "notes"
+                      - condition:
+                          fn: "startswith"
+                          column: "notes"
+                          value:
+                            lit: "Медик"
+                        value:
+                          lit: "Медик"
+            filter: true
+      raw_metadata:
+        entities:
+          - "raw_metadata"
+          - "common"
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                birth_year:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "birth_date"
+                    value:
+                      lit: "^(\\d{1,2}\\.)?\\d{4}$"
+                  value: "birth_date"
+                death_date:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "death_date"
+                    value:
+                      lit: "^(\\d{1,2}\\.)?\\d{2}-?\\d{2}$"
+                  value: "death_date"
+                death_notification_date: "notification_date"
+                interment_date: "interment_date"
+                death_region: "death_region"
+                death_place: "death_place"
+                status:
+                  fn: "case"
+                  condition:
+                    fn: "isin"
+                    column:
+                      fn: "lower"
+                      column: "category"
+                    values:
+                      - lit: "зк"
+                      - lit: "доброволец"
+                  value: "category"
+                notes:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "and"
+                        columns:
+                          - fn: "rlike"
+                            column: "notes"
+                            value:
+                              lit: "^(Начальник|Медик|Вместе)"
+                          - fn: "not"
+                            column:
+                              fn: "rlike"
+                              column: "notes"
+                              value:
+                                lit: "^[Вв]месте (с ) \\d+\\.?$"
+                      value:
+                        fn: "regexp_replace"
+                        column:
+                          fn: "regexp_replace"
+                          column:
+                            fn: "regexp_replace"
+                            column: "notes"
+                            pattern:
+                              lit: "\\d+\\. ?"
+                          pattern:
+                            lit: "[Вв]месте (с )?\\d+\\.?$"
+                        pattern:
+                          lit: "[Вв]месте (с )?\\d+\\.,"
+                    - condition:
+                        fn: "rlike"
+                        column: "notes"
+                        value:
+                          lit: "^(экс|штурм|умер|убит|тесть|ранен|порт|погиб|по |несчастный|на |музыкант|контракт|зарыт|заключил|доцент|герой|возможно|взрыв|болезнь|Штурм|Умер|Точка|Таджикистан|Славянск|Сирия|СОБР|Похищен|Первый|ПБВ|Макеевуголь|Ливия|Курсант|Кладбище|Зарыт|Завод|Доцент|Донбасс|Взрыв|Взорван|Был|Болезнь|БАРС|Афганистан|HIMARS|266)"
+                      value: "notes"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "служив у ЗСУ, Донбасс"
+                      value:
+                        lit: "служил в ВСУ, Донбасс"
+                    - condition:
+                        fn: "eq"
+                        column: "notes"
+                        value:
+                          lit: "син замголови ЦРУ"
+                      value:
+                        lit: "сын замглавы ЦРУ"
+                recruited:
+                  fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "startswith"
+                      column: "recruited"
+                      value:
+                        lit: "http"
+                  value: "recruited"
+                google_map:
+                  fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "startswith"
+                      column: "map"
+                      value:
+                        lit: "http"
+                  value: "map"
+                alternative_map:
+                  fn: "case"
+                  condition:
+                    fn: "not"
+                    column:
+                      fn: "startswith"
+                      column: "alternative_map"
+                      value:
+                        lit: "http"
+                  value: "alternative_map"
+            filter: true
+gold:
+  ids:
+    - id: "1"
+    - id: "2"
+  remain: [ "forces" ]

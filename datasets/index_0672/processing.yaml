@@ -1,0 +1,94 @@
+sourceId: "index_0672"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0672/raw/rus-zоІоto_ru.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        first_name: "CustomerFirstName"
+        last_name: "CustomerLastName"
+        middle_name: "CustomerMiddleName"
+        birth_date: "CustomerBirthDate"
+    phones:
+      columns:
+        phone: "CustomerMobilePhone"
+    emails:
+      columns:
+        email1: "CustomerEmail"
+        email2: "CustomerPendingEmail"
+    raw_metadata:
+        columns:
+          CustomerCustomFieldsStores: "CustomerCustomFieldsStores"
+    actuality:
+      columns:
+        data: "CustomerChangeDateTimeUtc"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "explode"
+            column:
+              fn: "emails_udf"
+              column: 
+                fn: "array"
+                columns:
+                  - "email1"
+                  - "email2"    
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                CustomerCustomFieldsStores: "CustomerCustomFieldsStores"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "data"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+        - "birth_date"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  

@@ -1,0 +1,64 @@
+sourceId: "index_0734"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+    forces:
+      columns:
+        rank: "metadata.military_rank"
+        position: "metadata.military_position"
+        unit_name_part_1: "metadata.military_belonging"
+        unit_name_part_2: "metadata.military_subdivision"
+    raw_metadata:
+      columns:
+        url: "metadata.url"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - lit: "42 МСД 70 МСП"
+                - "unit_name_part_1"
+                - fn: "case"
+                  condition:
+                    fn: "ne"
+                    column:
+                      fn: "lower"
+                      column: "unit_name_part_1"
+                    value:
+                      fn: "lower"
+                      column: "unit_name_part_2"
+                  value: "unit_name_part_2"
+            position: "position"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "metadata.url": "url"
+          filter: true
+gold:
+  remain: [ "forces" ]

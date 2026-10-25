@@ -1,0 +1,216 @@
+sourceId: "index_0723"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: [ "-", "(empty)", "нет" ]
+    replaceRegexWithNone: "^\\s*$"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+        relationship: "metadata.status"
+    phones:
+      columns:
+        phone: "phone"
+    address:
+      columns:
+        address1: "address"
+        address2: "metadata.address_city"
+    educations:
+      columns:
+        title: "metadata.education_institution"
+    forces:
+      columns:
+        tag_number: "metadata.personal_number"
+        rank: "metadata.military_rank"
+        mos_code: "metadata.military_occupation"
+        unit_code_1: "metadata.military_contract_order_by"
+        unit_code_2: "metadata.military_unit"
+        unit_name_part_1: "metadata.military_union"
+        unit_name_part_2: "metadata.military_brigade"
+        unit_name_part_3: "metadata.military_subdivision"
+        position: "metadata.work_position"
+    raw_metadata:
+      columns:
+        gold_medal: "metadata.gold_medal"
+        diploma_with_honors: "metadata.diploma_with_honors"
+        military_training_level: "metadata.military_training_level"
+        head_of_the_personnel_department_of_the_university: "metadata.head_of_the_personnel_department_of_the_university"
+        mentor_title_full_name_position: "metadata.mentor_title_full_name_position"
+        military_contract_order_issued_at: "metadata.military_contract_order_issued_at"
+        responsible_executor: "metadata.responsible_executor"
+        notes: "metadata.notes"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+        relationship:
+          source:
+            fn: "relationship_udf"
+            column: "relationship"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "eq"
+                  column: "phone"
+                  value:
+                    lit: "8.91961567638914E+021"
+                value:
+                  lit: "89196156763"
+              otherwise: "phone"
+          filter: true
+    address:
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "address1"
+                  - "address2"
+        address:
+          source:
+            fn: "address_udf"
+            column: "__address"
+          filter: true
+    educations:
+      columns:
+        educations:
+          source:
+            fn: "education_udf"
+            title: "title"
+          filter: true
+    forces:
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            tag_number: "tag_number"
+            rank: "rank"
+            unit_code:
+              fn: "coalesce"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "unit_code_1"
+                    value:
+                      lit: "\\b\\d{5}$"
+                  value:
+                    fn: "regexp_extract"
+                    column: "unit_code_1"
+                    pattern:
+                      lit: "\\b(\\d{5})$"
+                    index:
+                      lit: 1
+                - "unit_code_2"
+            unit_name:
+              fn: "concat_ws"
+              columns:
+                - "unit_name_part_1"
+                - "unit_name_part_2"
+                - "unit_name_part_3"
+            mos_code: "mos_code"
+            position:
+              fn: "lower"
+              column: "position"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "metadata.gold_medal":
+                fn: "case"
+                condition:
+                  fn: "eq"
+                  column: "gold_medal"
+                  value:
+                    lit: "да"
+                value: "gold_medal"
+              "metadata.diploma_with_honors":
+                fn: "case"
+                condition:
+                  fn: "eq"
+                  column: "diploma_with_honors"
+                  value:
+                    lit: "да"
+                value: "diploma_with_honors"
+              "metadata.military_training_level":
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "military_training_level"
+                  value:
+                    lit: "^(П|В)"
+                value: "military_training_level"
+              "metadata.head_of_the_personnel_department_of_the_university":
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "head_of_the_personnel_department_of_the_university"
+                  value:
+                    lit: "^(п|М)"
+                value: "head_of_the_personnel_department_of_the_university"
+              "metadata.mentor_title_full_name_position":
+                fn: "case"
+                condition:
+                  fn: "gt"
+                  column:
+                    fn: "length"
+                    column: "mentor_title_full_name_position"
+                  value:
+                    lit: 5
+                value: "mentor_title_full_name_position"
+              "metadata.military_contract_order_issued_at": "military_contract_order_issued_at"
+              "metadata.responsible_executor": "responsible_executor"
+              "metadata.notes": "notes"
+          filter: true
+gold:
+  transformations:
+    op: "groupBy"
+    columns:
+      - "names"
+      - "phones"
+    positive:
+      fn: "and"
+      columns:
+        - fn: "gt"
+          column:
+            fn: "size"
+            column: "names"
+          value:
+            lit: 0
+        - fn: "gt"
+          column:
+            fn: "size"
+            column: "phones"
+          value:
+            lit: 0
+  remain: [ "phones", "educations", "forces" ]

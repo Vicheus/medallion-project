@@ -1,0 +1,81 @@
+sourceId: "index_0698"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0698/raw/modx_ms2_order_addresses.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        first_name: "receiver_name"
+        last_name: "receiver_lastname"
+        middle_name: "receiver_middlename"
+    address:
+      columns:
+        city: "city"
+        street: "street"
+        building: "building"
+        room: "room"
+    phones:
+      columns:
+        phone: "phone"
+    raw_metadata:
+        columns:
+          comment: "comment"
+    actuality:
+      columns:
+        createdon: "createdon"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "last_name"
+              - "first_name"
+              - "middle_name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "concat_ws"
+                columns:
+                  - "index"
+                  - "city"
+                  - "street"
+                  - "building"
+                  - "room"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "createdon"
+            date_format:
+              lit: "%Y-%m-%d %H:%M:%S"
+          filter: true
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                comment: "comment"
+            filter: true
+gold:
+  remain: [ "phones" ]
+  

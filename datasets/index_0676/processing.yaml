@@ -1,0 +1,80 @@
+sourceId: "index_0676"
+
+bronze:
+  read:
+    path: "/media/user/T7/datasets/index_0676/raw/med_pacient.csv"
+    options:
+      inferSchema: false
+      sep: "\t"
+  entities:
+    persons:
+      columns:
+        name: "Имя Пациента"
+        birth_date: "Дата рождения"
+    documents:
+      columns:
+        snils: "СНИЛС"
+    phones:
+      columns:
+        phone: "Телефон(МОБ)"
+    raw_metadata:
+      columns:
+        hospital_name: "Название мед учреждение"
+        hospital_address: "Адрес больницы"
+        hospital_reason: "Причина посещения"
+        blood_group: "Группа Крови Пациента"
+    actuality:
+      columns:
+        visit_date: "Дата"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%Y-%m-%d"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "document_udf"
+            type:
+              lit: "снилс"
+            serial: "snils"
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              Название мед учреждение: "hospital_name"
+              Адрес больницы: "hospital_address"
+              Причина посещения: "hospital_reason"
+              Группа Крови Пациента: "blood_group"
+          filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "visit_date"
+            date_format:
+              lit: "%Y.%m.%d"
+          filter: true
+gold:
+  remain: [ "phones", "documents" ]
+  

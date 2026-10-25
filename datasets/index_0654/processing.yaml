@@ -1,0 +1,137 @@
+sourceId: "index_0654"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0654/raw/toy.ru_dbty_b_user.csv"
+    options:
+      inferSchema: false
+  entities:
+    persons:
+      columns:
+        firstname: "NAME"
+        lastname: "LAST_NAME"
+        middlename: "SECOND_NAME"
+        birth_date: "PERSONAL_BIRTHDAY"
+        sex: "PERSONAL_GENDER"
+    phones:
+      columns:
+        phone1: "PERSONAL_PHONE"
+        phone2: "PERSONAL_MOBILE"
+    emails:
+      columns:
+        email: "EMAIL"
+    address:
+      columns:
+        personal_city: "PERSONAL_CITY"
+        personal_zip: "PERSONAL_ZIP"
+        personal_street: "PERSONAL_STREET"
+    accounts:
+      columns:
+        login: "LOGIN"
+        password: "PASSWORD"
+    actuality:
+      columns:
+        last_login: "LAST_LOGIN"
+        last_activity_date: "LAST_ACTIVITY_DATE"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "lastname"
+              - "firstname"
+              - "middlename"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "explode"
+            column:
+              fn: "phones_udf"
+              column: 
+                fn: "array"
+                columns:
+                  - "phone1"
+                  - "phone2"    
+          filter: true
+    address:
+      columns:
+        address:
+          source:
+           fn: "address_udf"
+           column:
+            fn: "case"
+            condition:
+              fn: "isNotNull"
+              column: "personal_city"
+            value:
+              fn: "concat_ws"
+              columns:
+                - "personal_city"
+                - "personal_zip"
+                - fn: "case"
+                  condition:
+                    fn: "isNotNull"
+                    column: "personal_street"
+                  value:
+                    fn: "concat"
+                    columns:
+                      - lit: "ул. "
+                      - "personal_street"
+              sep:
+                lit: " "
+          filter: true
+    accounts:
+      columns:
+        accounts:
+          source:
+            fn: "when"
+            cases:
+              condition:
+                fn: "and"
+                columns:
+                  - fn: "isNotNull"
+                    column: "login"
+                  - fn: "isNotNull"
+                    column: "password"
+              value:
+                fn: "struct"
+                values:
+                    title:
+                      lit: "Магазин игрушек Toy.ru"
+                    link:
+                      lit: "https://toy.ru"
+                    login: "login"
+                    password_hash: "password"
+          filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "latest_actuality_date_udf"
+            columns:
+              - "last_login"
+              - "last_activity_date"
+          filter: true
+gold:
+  remain: ["phones", "emails"]
+  

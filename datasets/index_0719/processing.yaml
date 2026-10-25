@@ -1,0 +1,608 @@
+sourceId: "index_0719"
+
+bronze:
+  - id: "1"
+    read:
+      path: "Данные военных РФ 2021_part1.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+      trimValues: " \""
+      replaceWithNone: [ "0", "#N/A" ]
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "Табельный номер"
+          birth_date: "ДатаРожд"
+          sex: "Ключ пола"
+      documents:
+        columns:
+          serial_part_1: "Серия"
+          serial_part_2: "-"
+          serial_part_3: "Ид номер"
+          serial: "Категория сотрудников"
+          authority: "Кем выдан"
+          authority_code: "Код подразделения"
+          date_issue: "Дата выдачи"
+      forces:
+        columns:
+          tag_number: "л н"
+          rank: "Наименование воинского звания"
+          unit_value: "Раздел персонала"
+          unit_name_part_1: "3"
+          unit_name_part_2: "2"
+          unit_name_part_3: "1"
+          weapon_serial: "Таб №"
+  - id: "2"
+    read:
+      path: "Данные военных РФ 2021_part2.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+      trimValues: " \""
+      replaceWithNone: [ "0", "#N/A" ]
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "Табельный номер"
+          birth_date: "ДатаРожд"
+          sex: "Ключ пола"
+      documents:
+        columns:
+          serial: "Категория сотрудников"
+          authority1: "Подтип"
+          authority2: "-"
+      address:
+        columns:
+          address: "Раздел персонала"
+      forces:
+        columns:
+          unit_name_part_1: "3"
+          unit_name_part_2: "2"
+          unit_name_part_3: "1"
+      raw_metadata:
+        columns:
+          weapon_serial: "Таб №"
+silver:
+  - id: "1"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+              date_format:
+                lit: "%m/%d/%Y"
+          sex:
+            source:
+              fn: "sex_udf"
+              column: "sex"
+      documents:
+        columns:
+          documents:
+            source:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рф"
+              serial:
+                fn: "concat"
+                columns:
+                  - "serial_part_1"
+                  - "serial_part_2"
+                  - "serial_part_3"
+              date_issue: "date_issue"
+              authority: "authority"
+              authority_code: "authority_code"
+              date_format:
+                lit: "%m/%d/%Y"
+            filter: true
+      forces:
+        columns:
+          __unit_code:
+            source:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "rlike"
+                    column: "unit_value"
+                    value:
+                      lit: "^Измерительный пункт"
+                  value:
+                    fn: "regexp_extract"
+                    column: "unit_value"
+                    pattern:
+                      lit: "(\\d{5})"
+                    index:
+                      lit: 1
+                - condition:
+                    fn: "rlike"
+                    column: "unit_value"
+                    value:
+                      lit: " (ОПиПРМ|Анива|РадиотехРота)$"
+                  value:
+                    fn: "regexp_replace"
+                    column: "unit_value"
+                    pattern:
+                      lit: " (ОПиПРМ|Анива|РадиотехРота)$"
+              otherwise:
+                fn: "case"
+                condition:
+                  fn: "and"
+                  columns:
+                    - fn: "rlike"
+                      column: "unit_value"
+                      value:
+                        lit: "\\d{4,}"
+                    - fn: "not"
+                      column:
+                        fn: "rlike"
+                        column: "unit_value"
+                        value:
+                          lit: "Военное|ВоеннП|ЦГСЭН| ЛИТ |БХРВиТ"
+                value: "unit_value"
+          __unit_name_part_4:
+            source:
+              fn: "case"
+              condition:
+                fn: "isNull"
+                column: "__unit_code"
+              value: "unit_value"
+          __unit_name:
+            source:
+              fn: "array_join"
+              column:
+                fn: "array_distinct"
+                column:
+                  fn: "array"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "or"
+                          columns:
+                            - fn: "startswith"
+                              column:
+                                fn: "lower"
+                                column: "unit_name_part_1"
+                              value:
+                                lit: "другие"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_1"
+                                  value:
+                                    lit: "вквп"
+                                - fn: "startswith"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "ВКВП "
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_1"
+                                  value:
+                                    lit: "вво"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "Управление ВВО"
+                      value: "unit_name_part_1"
+                    - fn: "case"
+                      condition:
+                        fn: "and"
+                        columns:
+                          - fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "unit_name_part_2"
+                            value:
+                              lit: "^(?!другие)"
+                          - fn: "not"
+                            column:
+                              fn: "or"
+                              columns:
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_2"
+                                      value:
+                                        lit: "вквп"
+                                    - fn: "startswith"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "ВКВП "
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_1"
+                                      value:
+                                        lit: "гк вмф"
+                                    - fn: "eq"
+                                      column: "unit_name_part_2"
+                                      value:
+                                        lit: "вмф"
+                      value: "unit_name_part_2"
+                    - fn: "case"
+                      condition:
+                        fn: "and"
+                        columns:
+                          - fn: "rlike"
+                            column:
+                              fn: "lower"
+                              column: "unit_name_part_3"
+                            value:
+                              lit: "^(?!другие)"
+                          - fn: "not"
+                            column:
+                              fn: "or"
+                              columns:
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "1029 ЦГСЭН"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "1029 ЦГСЭН Владивосток"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "30 кп пво"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "30 командный пункт ПВО"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "1207 рцм"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "327 ЛИТ 1207 РЦМ"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "344 вшп"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "344 военная школа поваров"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "431 кп ПВО"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "431 командный пункт ПВО"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "isin"
+                                      column: "unit_name_part_3"
+                                      values:
+                                        - lit: "641 кп пво"
+                                        - lit: "643 кп"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "641 командный пункт (ПВО)"
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "вквп"
+                                    - fn: "startswith"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "ВКВП "
+                                - fn: "and"
+                                  columns:
+                                    - fn: "eq"
+                                      column: "unit_name_part_3"
+                                      value:
+                                        lit: "Инспекция безопасности мореплавания ТОФ"
+                                    - fn: "eq"
+                                      column: "__unit_name_part_4"
+                                      value:
+                                        lit: "ИБМ ВГР ТОФ Владивосток"
+                      value: "unit_name_part_3"
+                    - fn: "case"
+                      condition:
+                        fn: "not"
+                        column:
+                          fn: "or"
+                          columns:
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "196 ВАИ территориальная 2 разряда"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "196 ВАИ"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "Ансамбль ПиП"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "АПП ВВО"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "ансамбль песни и пляски флота"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "АПП ТОФ"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_1"
+                                  value:
+                                    lit: "гук"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "ГУК МО РФ"
+                            - fn: "startswith"
+                              column: "__unit_name_part_4"
+                              value:
+                                lit: "КомВОСО "
+                            - fn: "startswith"
+                              column: "__unit_name_part_4"
+                              value:
+                                lit: "ОСК "
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "УпрВоенСбщКамчат-ЧукоМорРечБас"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "УпрВОСО Камчат-Чукотский Бас"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "УпрВоенСбщ на Ленском речБас"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "УпрВОСО Ленский Бас"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "УпрВоенСбщ наСахалинБас"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "УпрВОСО Сахалинский Бас"
+                            - fn: "and"
+                              columns:
+                                - fn: "eq"
+                                  column: "unit_name_part_3"
+                                  value:
+                                    lit: "Ансамбль ПиП"
+                                - fn: "eq"
+                                  column: "__unit_name_part_4"
+                                  value:
+                                    lit: "ф-л АПП ВВО"
+                      value: "__unit_name_part_4"
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number: "tag_number"
+              rank: "rank"
+              unit_code: "__unit_code"
+              unit_name:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "isNull"
+                        column: "__unit_code"
+                      - fn: "not"
+                        column:
+                          fn: "endswith"
+                          column:
+                            fn: "lower"
+                            column: "__unit_name"
+                          value:
+                            fn: "lower"
+                            column: "unit_value"
+                  value:
+                    fn: "concat_ws"
+                    columns:
+                      - "__unit_name"
+                      - "unit_value"
+                otherwise: "__unit_name"
+            filter: true
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Таб №: "weapon_serial"
+                Раздел персонала:
+                  fn: "when"
+                  cases:
+                    - fn: "case"
+                      condition:
+                        fn: "and"
+                        columns:
+                          - fn: "isNull"
+                            column: "forces.unit_code"
+                          - fn: "not"
+                            column:
+                              fn: "endswith"
+                              column: "forces.unit_name"
+                              value: "unit_value"
+                      value: "unit_value"
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "unit_value"
+                        value:
+                          lit: " (ОПиПРМ|Анива|РадиотехРота)$"
+                      value: "unit_value"
+  - id: "2"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+              date_format:
+                lit: "%m/%d/%Y"
+          sex:
+            source:
+              fn: "sex_udf"
+              column:
+                fn: "regexp_replace"
+                column: "sex"
+                pattern:
+                  lit: "\\.$"
+      documents:
+        columns:
+          documents:
+            source:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рф"
+              serial: "serial"
+              authority:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "rlike"
+                    column: "authority1"
+                    value:
+                      lit: "^\\d{6}"
+                  value: "authority2"
+                otherwise: "authority1"
+            filter: true
+      address:
+        columns:
+          address:
+            source:
+              fn: "address_udf"
+              column:
+                fn: "when"
+                cases:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "address"
+                    value:
+                      lit: "(\\d{10,}\\.?|\\d{2}\\.\\d{2}\\.\\d{4})$"
+                  value:
+                    fn: "regexp_replace"
+                    column: "address"
+                    pattern:
+                      lit: "(\\d{10,}\\.?|\\d{2}\\.\\d{2}\\.\\d{4})$"
+                otherwise: "address"
+            filter: true
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              unit_name:
+                fn: "array_join"
+                column:
+                  fn: "array_distinct"
+                  column:
+                    fn: "array"
+                    columns:
+                      - fn: "case"
+                        condition:
+                          fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "unit_name_part_1"
+                          value:
+                            lit: "^(?!другие)"
+                        value: "unit_name_part_1"
+                      - fn: "case"
+                        condition:
+                          fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "unit_name_part_2"
+                          value:
+                            lit: "^(?!другие)"
+                        value: "unit_name_part_2"
+                      - fn: "case"
+                        condition:
+                          fn: "rlike"
+                          column:
+                            fn: "lower"
+                            column: "unit_name_part_3"
+                          value:
+                            lit: "^(?!другие)"
+                        value: "unit_name_part_3"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Таб №: "weapon_serial"
+            filter: true
+gold:
+  ids:
+    - id: "1"
+    - id: "2"
+  transformations:
+    - op: "aggGroupBy"
+    - op: "groupBy"
+      columns:
+        - "sex"
+        - "names"
+        - "birth_date"
+        - "raw_metadata"
+      positive:
+        fn: "isNotNull"
+        column: "raw_metadata"
+  remain: [ "documents", "forces" ]

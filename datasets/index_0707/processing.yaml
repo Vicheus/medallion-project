@@ -1,0 +1,628 @@
+sourceId: "index_0707"
+
+bronze:
+  - id: "1"
+    read:
+      path: "ШДС_2024_1.csv"
+      options:
+        inferSchema: false
+        sep: ";"
+      trimValues: true
+      replaceWithNone: "0ВАКАНТ"
+      replaceRegexWithNone: "^\\s*$"
+      append:
+        read:
+          path: "ШДС_2024_5.csv"
+          options:
+            inferSchema: false
+            sep: ";"
+          trimValues: true
+          replaceRegexWithNone: "^\\s*$"
+        allowMissingColumns: true
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+          birth_date: "Дата рождения"
+      phones:
+        columns:
+          phone: "Номер телефона"
+      educations:
+        columns:
+          education: "Образование"
+      forces:
+        columns:
+          tag_number: "Личный номер"
+          rank: "Звание"
+          position1: "_c7"
+          position2: "Должность"
+          mos_code: "ВУС"
+          date_start: "Дата зачисления"
+          unit_name_part_1: "Открытое наименование"
+          unit_name_part_2: "Батальон (дивизион)"
+          unit_name_part_3: "Рота (батарея)"
+          unit_name_part_4: "Взвод"
+          unit_name_part_5: "Отделение (расчет)"
+      raw_metadata:
+        columns:
+          mil_comst1: "Состоял на военном учете"
+          mil_comst2: "Предписание"
+          mil_services: "в ВС РФ (периоды)"
+  - id: "2"
+    read:
+      path: "ШДС_2024_2.csv"
+      options:
+        inferSchema: false
+        sep: ";"
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name1: "ФИО"
+          name2: "Подобран ФИО"
+          birth_date1: "Дата рождения"
+          birth_date2: "Подобран"
+      forces:
+        columns:
+          tag_number: "Личный номер"
+          rank: "Звание"
+          position1: "_c7"
+          position2: "Должность"
+          mos_code: "ВУС"
+          date_start: "Дата зачисления"
+          unit_name_part_1: "Открытое наименование"
+          unit_name_part_2: "Батальон (дивизион)"
+          unit_name_part_3: "Рота (батарея)"
+          unit_name_part_4: "Взвод"
+          unit_name_part_5: "Отделение (расчет)"
+      common:
+        columns:
+          education: "Предписание"
+          mil_services1: "Состоял на военном учете"
+          mil_services2: "Откуда прибыл"
+          mil_comst1: "Примечание"
+          mil_comst2: "Группа сотрудников"
+  - id: "3"
+    read:
+      path: "ШДС_2024_3.csv"
+      header:
+        - "№п/п"
+        - "Открытое наименование"
+        - "Батальон (дивизион)"
+        - "Рота (батарея)"
+        - "Взвод"
+        - "Отделение (расчет)"
+        - "Должность"
+        - "Звание"
+        - "Личный номер"
+        - "ФИО"
+        - "По плану перемещения"
+        - "Примечание"
+        - "Дата рождения"
+        - "unknown1"
+        - "unknown2"
+        - "unknown3"
+        - "unknown4"
+        - "unknown5"
+        - "unknown6"
+        - "unknown7"
+        - "unknown8"
+        - "unknown9"
+        - "Дата зачисления"
+        - "Приказ по личному составу"
+        - "Образование"
+        - "в ВС РФ (периоды)"
+        - "контракт на (год)"
+        - "контракт по"
+        - "Предписание"
+        - "Состоял на военном учете"
+        - "Откуда прибыл"
+      options:
+        inferSchema: false
+        sep: ";"
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+          birth_date: "Дата рождения"
+      educations:
+        columns:
+          education: "Образование"
+      forces:
+        columns:
+          tag_number: "Личный номер"
+          rank: "Звание"
+          position: "Должность"
+          date_start: "Дата зачисления"
+          unit_name_part_1: "Открытое наименование"
+          unit_name_part_2: "Батальон (дивизион)"
+          unit_name_part_3: "Рота (батарея)"
+          unit_name_part_4: "Взвод"
+          unit_name_part_5: "Отделение (расчет)"
+      raw_metadata:
+        columns:
+          mil_comst: "Состоял на военном учете"
+          mil_services: "в ВС РФ (периоды)"
+  - id: "4"
+    read:
+      path: "ШДС_2024_4.csv"
+      options:
+        inferSchema: false
+        sep: ";"
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+      forces:
+        columns:
+          tag_number: "Личный номер"
+          rank: "Звание"
+          unit_name: "Подразделение"
+silver:
+  - id: "1"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "birth_date_udf"
+                  column: "birth_date"
+                  date_format:
+                    lit: "%m/%d/%Y"
+                - fn: "birth_date_udf"
+                  column: "birth_date"
+                  date_format:
+                    lit: "%d.%m.%Y"
+      phones:
+        columns:
+          phones:
+            source:
+              fn: "phone_udf"
+              column: "phone"
+            filter: true
+      educations:
+        columns:
+          __education:
+            source:
+              fn: "regexp_extract"
+              column: "education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 1
+            filter: true
+          __date_end:
+            source:
+              fn: "regexp_extract"
+              column: "education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 2
+          __educations:
+            source:
+              fn: "education_udf"
+              level:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "ne"
+                    column: "__education"
+                    value:
+                      lit: ""
+                  value:
+                    fn: "when"
+                    cases:
+                      - condition:
+                          fn: "isin"
+                          column: "__education"
+                          values:
+                            - lit: "основное общеее"
+                            - lit: "сновное общее"
+                        value:
+                          lit: "средняя школа"
+                      - condition:
+                          fn: "isin"
+                          column: "__education"
+                          values:
+                            - lit: "средней общее"
+                            - lit: "средее общее"
+                        value:
+                          lit: "среднее общее"
+                      - condition:
+                          fn: "eq"
+                          column: "__education"
+                          value:
+                            lit: "среднее профессинальное"
+                        value:
+                          lit: "среднее общее"
+                    otherwise: "__education"
+                otherwise: "education"
+              date_end: "__date_end"
+              date_format:
+                lit: "%Y"
+          educations:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "isNull"
+                  column: "__educations"
+                value:
+                  fn: "education_udf"
+                  title: "__education"
+                  date_end: "__date_end"
+                  date_format:
+                    lit: "%Y"
+              otherwise: "__educations"
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number: "tag_number"
+              rank: "rank"
+              unit_name:
+                fn: "array_join"
+                column:
+                  fn: "array_distinct"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "unit_name_part_1"
+                      - "unit_name_part_2"
+                      - "unit_name_part_3"
+                      - "unit_name_part_4"
+                      - "unit_name_part_5"
+              mos_code: "mos_code"
+              position:
+                fn: "coalesce"
+                columns:
+                  - "position1"
+                  - "position2"
+              date_start: "date_start"
+              date_format:
+                lit: "%m/%d/%Y"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Состоял на военном учете:
+                  fn: "coalesce"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "startswith"
+                        column:
+                          fn: "lower"
+                          column: "mil_comst1"
+                        value:
+                          lit: "вк"
+                      value: "mil_comst1"
+                    - fn: "case"
+                      condition:
+                        fn: "startswith"
+                        column: "mil_comst2"
+                        value:
+                          lit: "ВК "
+                      value: "mil_comst2"
+                в ВС РФ (периоды): "mil_services"
+            filter: true
+  - id: "2"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "explode"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "name_udf"
+                    column:
+                      fn: "regexp_replace"
+                      column: "name1"
+                      pattern:
+                        lit: "только\\s+зачисление"
+                  - fn: "name_udf"
+                    column: "name2"
+            filter: true
+          birth_date:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "birth_date_udf"
+                  column: "birth_date1"
+                  date_format:
+                    lit: "%m/%d/%Y"
+                - fn: "birth_date_udf"
+                  column: "birth_date1"
+                  date_format:
+                    lit: "%d.%m.%Y"
+                - fn: "birth_date_udf"
+                  column: "birth_date2"
+                  date_format:
+                    lit: "%m/%d/%Y"
+      educations:
+        entities: "common"
+        columns:
+          __defined_education:
+            source:
+              fn: "coalesce"
+              columns:
+                - fn: "case"
+                  condition:
+                    fn: "isin"
+                    column:
+                      fn: "substring"
+                      column: "education"
+                      len:
+                        lit: 3
+                    values:
+                      - lit: "осн"
+                      - lit: "сре"
+                      - lit: "выс"
+                  value: "education"
+                - fn: "case"
+                  condition:
+                    fn: "isin"
+                    column:
+                      fn: "substring"
+                      column: "mil_services1"
+                      len:
+                        lit: 3
+                    values:
+                      - lit: "осн"
+                      - lit: "сре"
+                      - lit: "выс"
+                  value: "mil_services1"
+            filter: true
+          __education:
+            source:
+              fn: "regexp_extract"
+              column: "__defined_education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 1
+          __date_end:
+            source:
+              fn: "regexp_extract"
+              column: "__defined_education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 2
+          __educations:
+            source:
+              fn: "education_udf"
+              level: "__education"
+              date_end: "__date_end"
+              date_format:
+                lit: "%Y"
+          educations:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "isNull"
+                  column: "__educations"
+                value:
+                  fn: "education_udf"
+                  title: "__education"
+                  date_end: "__date_end"
+                  date_format:
+                    lit: "%Y"
+              otherwise: "__educations"
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number: "tag_number"
+              rank: "rank"
+              unit_name:
+                fn: "array_join"
+                column:
+                  fn: "array_distinct"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "unit_name_part_1"
+                      - "unit_name_part_2"
+                      - "unit_name_part_3"
+                      - "unit_name_part_4"
+                      - "unit_name_part_5"
+              mos_code: "mos_code"
+              position:
+                fn: "coalesce"
+                columns:
+                  - "position1"
+                  - "position2"
+              date_start: "date_start"
+              date_format:
+                lit: "%m/%d/%Y"
+            filter: true
+      raw_metadata:
+        entities: "common"
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Состоял на военном учете:
+                  fn: "coalesce"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "startswith"
+                        column: "mil_comst1"
+                        value:
+                          lit: "ВК "
+                      value: "mil_comst1"
+                    - fn: "case"
+                      condition:
+                        fn: "startswith"
+                        column: "mil_comst2"
+                        value:
+                          lit: "ВК "
+                      value: "mil_comst2"
+                в ВС РФ (периоды):
+                  fn: "coalesce"
+                  columns:
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "mil_services1"
+                        value:
+                          lit: "^(с |23)"
+                      value: "mil_services1"
+                    - fn: "case"
+                      condition:
+                        fn: "rlike"
+                        column: "mil_services2"
+                        value:
+                          lit: "^(с |23)"
+                      value: "mil_services2"
+            filter: true
+  - id: "3"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column: "birth_date"
+              date_format:
+                lit: "%m/%d/%Y"
+      educations:
+        columns:
+          __education:
+            source:
+              fn: "regexp_extract"
+              column: "education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 1
+            filter: true
+          __date_end:
+            source:
+              fn: "regexp_extract"
+              column: "education"
+              pattern:
+                lit: "^(.*?)\\s+в\\s+(\\d{4})\\s+г.*$"
+              index:
+                lit: 2
+          __educations:
+            source:
+              fn: "education_udf"
+              level:
+                fn: "when"
+                cases:
+                  condition:
+                    fn: "ne"
+                    column: "__education"
+                    value:
+                      lit: ""
+                  value: "__education"
+                otherwise: "education"
+              date_end: "__date_end"
+              date_format:
+                lit: "%Y"
+          educations:
+            source:
+              fn: "when"
+              cases:
+                condition:
+                  fn: "isNull"
+                  column: "__educations"
+                value:
+                  fn: "education_udf"
+                  title: "__education"
+                  date_end: "__date_end"
+                  date_format:
+                    lit: "%Y"
+              otherwise: "__educations"
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number: "tag_number"
+              rank: "rank"
+              unit_name:
+                fn: "array_join"
+                column:
+                  fn: "array_distinct"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "unit_name_part_1"
+                      - "unit_name_part_2"
+                      - "unit_name_part_3"
+                      - "unit_name_part_4"
+                      - "unit_name_part_5"
+              position: "position"
+              date_start: "date_start"
+              date_format:
+                lit: "%m/%d/%Y"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Состоял на военном учете: "mil_comst"
+                в ВС РФ (периоды): "mil_services"
+            filter: true
+  - id: "4"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number: "tag_number"
+              rank: "rank"
+              unit_name:
+                fn: "regexp_replace"
+                column: "unit_name"
+                pattern:
+                  lit: "^[Зз]а "
+            filter: true
+gold:
+  ids:
+    - id: "1"
+    - id: "2"
+    - id: "3"
+    - id: "4"
+  remain: [ "phones", "forces", "educations" ]

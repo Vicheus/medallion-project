@@ -1,0 +1,240 @@
+sourceId: "index_0801"
+
+bronze:
+  read:
+    path: "datasets/index_0801/raw/skb-techno.ru/skb_all_clients_11440_2026-09-09T06-21-51-884Z.csv"
+    options:
+      sep: ";"
+    trimValues: true
+    replaceRegexWithNone: "^[ 0\\-]+$"
+  entities:
+    persons:
+      columns:
+        lastname: "LastName"
+        firstname: "FirstName"
+        middlename: "MiddleName"
+        birth_date: "BirthDate"
+        birth_place: "BirthPlace"
+        sex: "Sex"
+    phones:
+      columns:
+        phone: "Phone"
+    emails:
+      columns:
+        email: "Email25"
+    documents:
+      columns:
+        type: "DocumentId"
+        series: "DocumentSeries"
+        number: "DocumentNumber"
+        date_issue: "DocumentDate"
+        authority: "DocumentIssuer"
+        authority_code: "DocumentIssuerCode"
+        inn: "InnPerson"
+        snils: "Snils"
+    address:
+      columns:
+        address1: "Address"
+        address2: "PostAddress"
+    works:
+      columns:
+        post: "AgentTitle"
+        company: "CompanyName"
+        inn: "Inn"
+        ogrn: "Ogrn"
+        company_address: "CompanyAddress"
+    raw_metadata:
+      columns:
+        org_reg_data: "OrgRegData"
+        org_auth_doc: "AuthorizationDocument"
+        comment: "Comment"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_parts_ordered_udf"
+            columns:
+              - "lastname"
+              - "firstname"
+              - "middlename"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%d.%m.%Y"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column: "birth_place"
+        sex:
+          source:
+            fn: "sex_udf"
+            column: "sex"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    emails:
+      columns:
+        emails:
+          source:
+            fn: "email_udf"
+            column: "email"
+          filter: true
+    address:
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "address1"
+                  - "address2"
+        address:
+          source:
+            fn: "address_udf"
+            column: "__address"
+          filter: true
+    addresses:
+      entities: "address"
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - "address1"
+                  - "address2"
+        addresses:
+          source:
+            batch_fn: "structured_address_udf"
+            raw: "__address"
+            address: "__address"
+          filter: true
+    works:
+      columns:
+        works:
+          source:
+            fn: "work_udf"
+            post: "post"
+            company: "company"
+            company_ru_inn: "inn"
+            company_ru_ogrn: "ogrn"
+            company_address:
+              fn: "address_udf"
+              column: "company_address"
+          filter: true
+    documents:
+      columns:
+        documents:
+          source:
+            fn: "explode"
+            column:
+              fn: "array"
+              columns:
+                - fn: "when"
+                  cases:
+                    - condition:
+                        fn: "eq"
+                        column: "type"
+                        value:
+                          lit: "Паспорт гражданина Российской Федерации"
+                      value:
+                        fn: "document_udf"
+                        type:
+                          lit: "паспорт гражданина рф"
+                        serial:
+                          fn: "concat_ws"
+                          columns:
+                            - "series"
+                            - "number"
+                        date_issue: "date_issue"
+                        authority: "authority"
+                        authority_code: "authority_code"
+                    - condition:
+                        fn: "eq"
+                        column: "type"
+                        value:
+                          lit: "Свидетельство о рождении"
+                      value:
+                        fn: "document_udf"
+                        type:
+                          lit: "свидетельство о рождении"
+                        serial:
+                          fn: "concat_ws"
+                          columns:
+                            - "series"
+                            - "number"
+                        date_issue: "date_issue"
+                        authority: "authority"
+                        authority_code: "authority_code"
+                    - condition:
+                        fn: "eq"
+                        column: "type"
+                        value:
+                          lit: "Вид на жительство иностранного гражданина или лица без гражданства"
+                      value:
+                        fn: "document_udf"
+                        type:
+                          lit: "вид на жительство"
+                        serial:
+                          fn: "concat_ws"
+                          columns:
+                            - "series"
+                            - "number"
+                        date_issue: "date_issue"
+                        authority: "authority"
+                        authority_code: "authority_code"
+                - fn: "document_udf"
+                  type:
+                    lit: "инн"
+                  serial: "inn"
+                - fn: "document_udf"
+                  type:
+                    lit: "снилс"
+                  serial: "snils"
+          filter: true
+    raw_metadata:
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              OrgRegData:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "org_reg_data"
+                  value:
+                    lit: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
+                value: "org_reg_data"
+              AuthorizationDocument:
+                fn: "case"
+                condition:
+                  fn: "rlike"
+                  column: "org_auth_doc"
+                  value:
+                    lit: "\\d{2}"
+                value: "org_auth_doc"
+              Comment: "comment"
+          filter: true
+gold:
+  transformations:
+    op: "aggGroupBy"
+    columns:
+      - "source_entity_id"
+      - "raw_metadata"
+  remain: [ "phones", "documents" ]

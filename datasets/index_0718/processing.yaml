@@ -1,0 +1,438 @@
+sourceId: "index_0718"
+
+bronze:
+  - id: "1"
+    read:
+      path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - 1. База СОЧ 1 АК - 4,402 чел.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+      trimValues: true
+      replaceWithNone: [ "РФ", "Рф" ]
+      replaceRegexWithNone: "^\\s*$"
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+          birth_date: "Дата рождения"
+      forces:
+        columns:
+          rank: "Воинское звание"
+          position: "Воинская должность"
+          unit_code: "В/ч"
+          unit_name: "Объединение"
+      actuality:
+        columns:
+          actuality: "Дата внесения изменения"
+      raw_metadata:
+        columns:
+          status: "Статус"
+          search_result: "Результат розыска"
+  - id: "2"
+    read:
+      path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - 2. МОДУЛЬ - 9,932 чел.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+      trimValues: true
+      replaceRegexWithNone: "^\\s*$"
+      append:
+        read:
+          path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - 3. РАЗЫСКАНЫ - 6,085 чел.csv"
+          options:
+            inferSchema: false
+            multiline: "true"
+          trimValues: true
+          replaceRegexWithNone: "^\\s*$"
+        allowMissingColumns: true
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+          birth_date: "Дата рождения"
+      forces:
+        columns:
+          tag_number: "Личный номер военнослужащего"
+          rank: "Воинское звание"
+          position: "Должность"
+          unit_code: "Место службы"
+          unit_name_part_1: "соединенине"
+          unit_name_part_2: "в/ч"
+          category: "Категория"
+          date_start: "Когда призван (отобран) на военную службу"
+      raw_metadata:
+        columns:
+          recruited: "Кем призван (отобран) на военную службу"
+          date_leave: "Дата СОЧ"
+          leave_type: "Обстоятельства СОЧ"
+          criminal_case: "Номер уголовного дела"
+          gun_number: "Табельный номер"
+          federal_search: "Федеральный розыск"
+  - id: "4"
+    read:
+      path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - УД 2023 фильтр 1 АК.csv"
+      options:
+        inferSchema: false
+        multiline: "true"
+      trimValues: true
+      append:
+        read:
+          path: "База-СОЧ-ЮВО-2024.ce634b.xlsx - УД 2024 фильтр 1 АК.csv"
+          options:
+            inferSchema: false
+            multiline: "true"
+          trimValues: true
+        allowMissingColumns: true
+    entities:
+      persons:
+        columns:
+          name: "ФИО"
+      forces:
+        columns:
+          unit_name: "в/ч"
+      raw_metadata:
+        columns:
+          criminal_case_part_1: "Номер уголовного дела"
+          criminal_case_part_2: "Столбец1"
+          criminal_case_part_3: "Столбец2"
+          criminal_case_part_4: "Столбец3"
+          criminal_case_part_5: "Столбец4"
+silver:
+  - id: "1"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column:
+                fn: "regexp_extract"
+                column: "birth_date"
+                pattern:
+                  lit: "(\\d{2}\\.\\d{2}\\.\\d{4})"
+                index:
+                  lit: 1
+              date_format:
+                lit: "%d.%m.%Y"
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              rank: "rank"
+              position:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "startswith"
+                    column:
+                      fn: "lower"
+                      column: "position"
+                    value:
+                      lit: "интеграция"
+                value: "position"
+              unit_code: "unit_code"
+              unit_name: "unit_name"
+            filter: true
+      actuality:
+        columns:
+          actuality:
+            source:
+              fn: "actuality_date_udf"
+              column: "actuality"
+              date_format:
+                lit: "%d.%m.%Y"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Статус:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column:
+                      fn: "lower"
+                      column: "status"
+                    value:
+                      lit: "^(200|осужден|проходит службу |исключен )"
+                  value: "status"
+                Результат розыска:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "search_result"
+                        value:
+                          lit: "^(умер|уволен |содержится |св\\.|свидетельство|акт|200)"
+                      value: "search_result"
+                    - condition:
+                        fn: "contains"
+                        column: "search_result"
+                        value:
+                          lit: "в/ч"
+                      value: "search_result"
+            filter: true
+  - id: "2"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+          birth_date:
+            source:
+              fn: "birth_date_udf"
+              column:
+                fn: "regexp_extract"
+                column: "birth_date"
+                pattern:
+                  lit: "(\\d{2}\\.\\d{2}\\.\\d{4})"
+                index:
+                  lit: 1
+              date_format:
+                lit: "%d.%m.%Y"
+      forces:
+        columns:
+          __date_start:
+            source:
+              fn: "case"
+              condition:
+                fn: "not"
+                column:
+                  fn: "contains"
+                  column: "date_start"
+                  value:
+                    lit: "№"
+              value:
+                fn: "regexp_extract"
+                column: "date_start"
+                pattern:
+                  lit: "(\\d{2}\\.\\d{2}\\.\\d{4}|\\d{1}/\\d{2}/\\d{4}|\\d{4}-\\d{2}-\\d{2})"
+                index:
+                  lit: 1
+          forces:
+            source:
+              fn: "force_udf"
+              tag_number:
+                fn: "when"
+                cases:
+                  - condition:
+                      fn: "rlike"
+                      column: "tag_number"
+                      value:
+                        lit: "^BE-"
+                    value:
+                      fn: "regexp_replace"
+                      column: "tag_number"
+                      pattern:
+                        lit: "^BE"
+                      replacement:
+                        lit: "ВЕ"
+                  - condition:
+                      fn: "rlike"
+                      column: "tag_number"
+                      value:
+                        lit: "^AB-"
+                    value:
+                      fn: "regexp_replace"
+                      column: "tag_number"
+                      pattern:
+                        lit: "^AB"
+                      replacement:
+                        lit: "АВ"
+                otherwise: "tag_number"
+              rank: "rank"
+              position:
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "startswith"
+                    column:
+                      fn: "lower"
+                      column: "position"
+                    value:
+                      lit: "интеграция"
+                value: "position"
+              unit_code: "unit_code"
+              unit_name:
+                fn: "array_join"
+                column:
+                  fn: "array_distinct"
+                  column:
+                    fn: "array"
+                    columns:
+                      - "unit_name_part_1"
+                      - "unit_name_part_2"
+              category: "category"
+              date_start:
+                fn: "multiple_date_formats_udf"
+                column: "__date_start"
+                date_formats:
+                  - lit: "%d.%m.%Y"
+                  - lit: "%m/%d/%Y"
+                  - lit: "%Y-%m-%d"
+              date_format:
+                lit: "%d.%m.%Y"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Кем призван (отобран) на военную службу:
+                  fn: "case"
+                  condition:
+                    fn: "or"
+                    columns:
+                      - fn: "rlike"
+                        column:
+                          fn: "lower"
+                          column: "recruited"
+                        value:
+                          lit: "^(?!(нет данных|не прибыл|данные |н/д|ввк|пункт отбора рф|ав-))"
+                      - fn: "ne"
+                        column:
+                          fn: "lower"
+                          column: "recruited"
+                        value:
+                          lit: "рф"
+                  value: "recruited"
+                Дата СОЧ:
+                  fn: "case"
+                  condition:
+                    fn: "and"
+                    columns:
+                      - fn: "rlike"
+                        column: "date_leave"
+                        value:
+                          lit: "\\d{2,}"
+                      - fn: "gt"
+                        column:
+                          fn: "length"
+                          column: "date_leave"
+                        value:
+                          lit: 3
+                  value: "date_leave"
+                Обстоятельства СОЧ:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "leave_type"
+                    value:
+                      lit: "\\d{2,}"
+                  value: "leave_type"
+                Номер уголовного дела:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "criminal_case"
+                    value:
+                      lit: "\\d{2,3}[\\. ]\\d{4}[\\. ]\\d{4}|\\d{15,18}"
+                  value: "criminal_case"
+                Табельный номер:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "gun_number"
+                    value:
+                      lit: "^\\d"
+                  value: "gun_number"
+                Федеральный розыск:
+                  fn: "case"
+                  condition:
+                    fn: "rlike"
+                    column: "federal_search"
+                    value:
+                      lit: "^\\d"
+                  value: "federal_search"
+            filter: true
+  - id: "4"
+    entities:
+      persons:
+        columns:
+          names:
+            source:
+              fn: "name_udf"
+              column: "name"
+            filter: true
+      forces:
+        columns:
+          forces:
+            source:
+              fn: "force_udf"
+              unit_code:
+                fn: "regexp_extract"
+                column: "unit_name"
+                pattern:
+                  lit: "(\\d{4,})"
+                index:
+                  lit: 1
+              unit_name:
+                fn: "case"
+                condition:
+                  fn: "eq"
+                  column: "unit_name"
+                  value:
+                    lit: "ВК ДНР"
+                value: "unit_name"
+            filter: true
+      raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                Номер уголовного дела:
+                  fn: "when"
+                  cases:
+                    - condition:
+                        fn: "gt"
+                        column:
+                          fn: "length"
+                          column: "criminal_case_part_1"
+                        value:
+                          lit: 1
+                      value:
+                        fn: "concat"
+                        columns:
+                          - "criminal_case_part_1"
+                          - "criminal_case_part_4"
+                    - condition:
+                        fn: "eq"
+                        column:
+                          fn: "length"
+                          column: "criminal_case_part_1"
+                        value:
+                          lit: 1
+                      value:
+                        fn: "concat_ws"
+                        columns:
+                          - "criminal_case_part_1"
+                          - "criminal_case_part_2"
+                          - "criminal_case_part_3"
+                          - "criminal_case_part_4"
+                          - "criminal_case_part_5"
+                        sep:
+                          lit: "."
+            filter: true
+gold:
+  ids:
+    - id: "1"
+    - id: "2"
+    - id: "4"
+  remain: [ "forces" ]

@@ -1,0 +1,201 @@
+sourceId: "index_0730"
+
+bronze:
+  read:
+    path: "data.csv"
+    options:
+      inferSchema: false
+    trimValues: true
+    replaceWithNone: "-"
+  entities:
+    persons:
+      columns:
+        name: "full_name"
+        birth_date: "metadata.birth_date"
+        birth_place: "metadata.address_city"
+    phones:
+      columns:
+        phone: "phone"
+    documents:
+      columns:
+        serial: "metadata.passport"
+        date_issue: "metadata.passport_issued_at"
+    address:
+      columns:
+        address: "address"
+    forces:
+      columns:
+        rank: "metadata.military_rank"
+        position: "metadata.work_position"
+silver:
+  entities:
+    persons:
+      columns:
+        __cleaned_name:
+          source:
+            fn: "regexp_replace"
+            column:
+              fn: "trim"
+              column:
+                fn: "regexp_replace"
+                column: "name"
+                pattern:
+                  lit: "\\(.*?\\)"
+                replacement:
+                  lit: " "
+            pattern:
+              lit: "\\s+"
+            replacement:
+              lit: " "
+        __cleaned_name_braces:
+          source:
+            fn: "trim"
+            column:
+              fn: "regexp_extract"
+              column: "name"
+              pattern:
+                lit: "\\((.*?)\\)"
+              index:
+                lit: 1
+            symbols:
+              lit: " ()"
+        names:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "array"
+                columns:
+                  - fn: "name_udf"
+                    column: "__cleaned_name"
+                  - fn: "name_udf"
+                    column: "__cleaned_name_braces"
+          filter: true
+        birth_date:
+          source:
+            fn: "birth_date_udf"
+            column: "birth_date"
+            date_format:
+              lit: "%b %d, %Y @ %H:%M:%S.%f"
+        birth_place:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "regexp_replace"
+              column: "birth_place"
+              pattern:
+                lit: "\\b(ВНР|РСФСР|УССР|БССР|АССР|СССР|ССР)\\b"
+    phones:
+      columns:
+        phones:
+          source:
+            fn: "phone_udf"
+            column: "phone"
+          filter: true
+    documents:
+      columns:
+        __date_issue:
+          source:
+            fn: "multiple_date_formats_udf"
+            column: "date_issue"
+            date_formats:
+              - lit: "%d/%m/%Y"
+              - lit: "%d.%m.%Y г."
+        documents:
+          source:
+            fn: "case"
+            condition:
+              fn: "rlike"
+              column: "serial"
+              value:
+                lit: "^\\d{4} "
+            value:
+              fn: "document_udf"
+              type:
+                lit: "паспорт гражданина рф"
+              serial: "serial"
+              date_issue: "__date_issue"
+              date_format:
+                lit: "%d.%m.%Y"
+          filter: true
+    address:
+      columns:
+        __address:
+          source:
+            fn: "explode"
+            column:
+              fn: "array_distinct"
+              column:
+                fn: "split"
+                column: "address"
+                pattern:
+                  lit: "адрес проживания:|адрес регистрации:"
+        address:
+          source:
+            fn: "address_udf"
+            column:
+              fn: "when"
+              cases:
+                - condition:
+                    fn: "contains"
+                    column: "__address"
+                    value:
+                      lit: "="
+                  value:
+                    fn: "regexp_replace"
+                    column: "__address"
+                    pattern:
+                      lit: "="
+                - condition:
+                    fn: "eq"
+                    column: "__address"
+                    value:
+                      lit: "г.СевастопольКрымской области"
+                  value:
+                    lit: "г. Севастополь"
+              otherwise: "__address"
+          filter: true
+    forces:
+      entities:
+        - "forces"
+        - "address"
+      columns:
+        forces:
+          source:
+            fn: "force_udf"
+            rank: "rank"
+            unit_name:
+              lit: "3 ртп"
+            position: "position"
+          filter: true
+    raw_metadata:
+      entities: "documents"
+      columns:
+        raw_metadata:
+          source:
+            fn: "raw_metadata_udf"
+            values:
+              "metadata.passport":
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "rlike"
+                    column: "serial"
+                    value:
+                      lit: "^\\d{4} "
+                value: "serial"
+              "metadata.passport_issued_at":
+                fn: "case"
+                condition:
+                  fn: "not"
+                  column:
+                    fn: "rlike"
+                    column: "serial"
+                    value:
+                      lit: "^\\d{4} "
+                value: "date_issue"
+          filter: true
+gold:
+  remain: [ "phones", "documents", "forces" ]

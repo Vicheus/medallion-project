@@ -1,0 +1,85 @@
+sourceId: "index_0681"
+
+bronze:
+  read:
+    path: "/home/user/Documents/data/index_0681/raw/amaks.csv"
+    options:
+      inferSchema: false
+      sep: ","
+  entities:
+    persons:
+      columns:
+        name: "fio"
+    phones:
+      columns:
+        phone: "tel"
+    emails:
+      columns:
+        email: "email"
+    raw_metadata:
+        columns:
+          summ: "summ"
+          comment: "comment"
+          Всего ночей в отеле: "Всего ночей в отеле"
+          Кол-во гостей: "Кол-во гостей"
+          Проживающие в номере: "Проживающие в номере"
+          Тип номера: "Тип номера"
+          Период проживания: "Период проживания"
+    actuality:
+      columns:
+        data: "data"
+silver:
+  entities:
+    persons:
+      columns:
+        names:
+          source:
+            fn: "name_udf"
+            column: "name"
+          filter: true
+    phones:
+      columns:
+        phones:
+          source:
+              fn: "phone_udf"
+              column: "phone"
+    emails:
+      columns:
+        emails:
+          source:
+              fn: "email_udf"
+              column: "email"
+    raw_metadata:
+        columns:
+          raw_metadata:
+            source:
+              fn: "raw_metadata_udf"
+              values:
+                summ: "summ"
+                comment: "comment"
+                Всего ночей в отеле: "Всего ночей в отеле"
+                Кол-во гостей: "Кол-во гостей"
+                Проживающие в номере: "Проживающие в номере"
+                Тип номера: "Тип номера"
+                Период проживания: "Период проживания"
+            filter: true
+    actuality:
+      columns:
+        actuality:
+          source:
+            fn: "actuality_date_udf"
+            column: "data"
+            date_format:
+              lit: "%Y-%m-%d"
+          filter: true
+gold:
+  remain: [ "phones", "emails" ]
+  transformations:
+    op: "groupBy"
+    columns:
+        - "names"
+        - "phones"
+    positive: 
+        fn: isNotNull
+        column: "phones"
+  
