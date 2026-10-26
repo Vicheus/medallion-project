@@ -10,7 +10,7 @@ from cloudevents.http import CloudEvent
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import main
 

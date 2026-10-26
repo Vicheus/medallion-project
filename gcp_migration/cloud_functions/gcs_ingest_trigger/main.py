@@ -1,0 +1,525 @@
+"""
+GCS to BigQuery Eventarc Trigger Function (Cloud Run Functions / 2nd gen).
+Autonomous, Event-Driven Medallion Pipeline Ingestion ("Drop CSV -> Gold").
+
+Listens for: google.cloud.storage.object.v1.finalized
+Target Path: gs://<bucket>/raw/<source_id>/<any_filename>.csv
+Bronze Table: bronze.raw_<source_id>
+Manifest: ops_monitoring.ingestion_manifest
+Catalog: ops_monitoring.source_catalog
+Dynamic Silver Engine: silver.sp_transform_metadata_source / silver.sp_transform_to_silver
+Gold Engine: gold.sp_build_gold
+Discrepancy Checks: ops_monitoring.sp_run_discrepancy_checks
+"""
+
+import os
+import re
+import json
+import logging
+from datetime import datetime, date, timezone
+from typing import Dict, Any, Tuple, Optional
+
+import functions_framework
+from cloudevents.http import CloudEvent
+from google.cloud import bigquery
+from google.cloud import storage
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("gcs_ingest_trigger")
+
+PROJECT_ID = os.environ.get("PROJECT_ID", "medallion-project-512608")
+LOCATION = os.environ.get("LOCATION", "europe-west1")
+DATASET_BRONZE = "bronze"
+DATASET_SILVER = "silver"
+DATASET_GOLD = "gold"
+DATASET_OPS = "ops_monitoring"
+
+# Regex pattern to match raw uploads:
+# Matches: raw/index_0001/file.csv, raw/index_0042/orders.csv, raw/index_0500/dump.csv
+RAW_PATH_REGEX = re.compile(r"^raw/([^/]+)/(.+)$")
+
+
+def get_bigquery_client() -> bigquery.Client:
+    return bigquery.Client(project=PROJECT_ID, location=LOCATION)
+
+
+def parse_gcs_path(gcs_path: str) -> Optional[Tuple[str, str]]:
+    """
+    Extracts (source_id, file_name) from GCS object path.
+    Example: raw/index_0001/subfolder/data.csv -> ("index_0001", "data.csv")
+    """
+    match = RAW_PATH_REGEX.match(gcs_path)
+    if not match:
+        return None
+    source_id = match.group(1)
+    file_name = os.path.basename(match.group(2))
+    return source_id, file_name
+
+
+def check_and_update_manifest(
+    bq_client: bigquery.Client,
+    file_path: str,
+    file_name: str,
+    source_id: str,
+    file_hash: Optional[str] = None
+) -> Tuple[date, datetime, bool, int]:
+    """
+    Queries ops_monitoring.ingestion_manifest to guarantee idempotent reloads:
+    - If file was already loaded in history: returns original ingest date & timestamp,
+      increments reupload_count.
+    - If new: creates manifest entry with current timestamp and reupload_count=0.
+    """
+    manifest_table = f"`{PROJECT_ID}.{DATASET_OPS}.ingestion_manifest`"
+
+    lookup_query = f"""
+    SELECT
+        first_ingest_date,
+        first_ingest_timestamp,
+        reupload_count
+    FROM {manifest_table}
+    WHERE file_path = @file_path OR (source_id = @source_id AND file_name = @file_name)
+    ORDER BY first_ingest_timestamp ASC
+    LIMIT 1
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("file_path", "STRING", file_path),
+            bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+            bigquery.ScalarQueryParameter("file_name", "STRING", file_name),
+        ]
+    )
+
+    query_job = bq_client.query(lookup_query, job_config=job_config)
+    results = list(query_job.result())
+
+    if results:
+        row = results[0]
+        first_date = row.first_ingest_date
+        first_ts = row.first_ingest_timestamp
+        reupload_count = row.reupload_count + 1
+        is_reupload = True
+
+        logger.info(
+            f"[IDEMPOTENCY] Existing file detected for {file_path}. "
+            f"Preserving original ingest_date={first_date}, reupload_count={reupload_count}"
+        )
+
+        update_query = f"""
+        UPDATE {manifest_table}
+        SET
+            last_reupload_timestamp = CURRENT_TIMESTAMP(),
+            reupload_count = @reupload_count,
+            file_hash_sha256 = COALESCE(@file_hash, file_hash_sha256),
+            status = 'PROCESSING',
+            error_message = NULL
+        WHERE file_path = @file_path OR (source_id = @source_id AND file_name = @file_name)
+        """
+        update_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("reupload_count", "INT64", reupload_count),
+                bigquery.ScalarQueryParameter("file_hash", "STRING", file_hash or ""),
+                bigquery.ScalarQueryParameter("file_path", "STRING", file_path),
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                bigquery.ScalarQueryParameter("file_name", "STRING", file_name),
+            ]
+        )
+        bq_client.query(update_query, job_config=update_job_config).result()
+        return first_date, first_ts, is_reupload, reupload_count
+
+    else:
+        now_ts = datetime.now(timezone.utc)
+        today_date = now_ts.date()
+        is_reupload = False
+        reupload_count = 0
+
+        logger.info(f"[MANIFEST] Registering new file: {file_path} with ingest_date={today_date}")
+
+        insert_query = f"""
+        INSERT INTO {manifest_table} (
+            file_path, file_name, source_id, file_hash_sha256,
+            first_ingest_timestamp, first_ingest_date,
+            last_reupload_timestamp, reupload_count,
+            record_count, status
+        ) VALUES (
+            @file_path, @file_name, @source_id, @file_hash,
+            @first_ts, @first_date,
+            @first_ts, 0,
+            0, 'PROCESSING'
+        )
+        """
+        insert_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("file_path", "STRING", file_path),
+                bigquery.ScalarQueryParameter("file_name", "STRING", file_name),
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                bigquery.ScalarQueryParameter("file_hash", "STRING", file_hash or ""),
+                bigquery.ScalarQueryParameter("first_ts", "TIMESTAMP", now_ts),
+                bigquery.ScalarQueryParameter("first_date", "DATE", today_date),
+            ]
+        )
+        bq_client.query(insert_query, job_config=insert_job_config).result()
+        return today_date, now_ts, is_reupload, reupload_count
+
+
+def purge_old_file_records(
+    bq_client: bigquery.Client,
+    table_id: str,
+    file_name: str,
+    ingest_date: date
+) -> int:
+    """
+    Purges any previous records for this file from the Bronze table
+    to guarantee zero duplicates on re-upload.
+    """
+    try:
+        bq_client.get_table(table_id)
+    except Exception:
+        logger.info(f"Table {table_id} does not exist yet. Skipping purge.")
+        return 0
+
+    purge_sql = f"""
+    DELETE FROM `{table_id}`
+    WHERE file_name = @file_name AND ingest_date = @ingest_date
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("file_name", "STRING", file_name),
+            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+        ]
+    )
+    res = bq_client.query(purge_sql, job_config=job_config).result()
+    deleted_rows = res.num_dml_affected_rows or 0
+    logger.info(f"[IDEMPOTENCY] Purged {deleted_rows} previous records for {file_name} from {table_id}")
+    return deleted_rows
+
+
+def load_file_into_bronze(
+    bq_client: bigquery.Client,
+    gcs_uri: str,
+    source_id: str,
+    file_name: str,
+    ingest_date: date,
+    ingest_timestamp: datetime
+) -> int:
+    """
+    Executes native BigQuery Load Job with autodetection,
+    then automatically adds and populates standard Bronze metadata fields:
+    (ingest_date, ingest_timestamp, file_name, source_id, source_entity_id).
+    """
+    table_id = f"{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}"
+
+    try:
+        bq_client.get_table(table_id)
+        table_exists = True
+    except Exception:
+        table_exists = False
+        logger.info(f"Table {table_id} does not exist. Auto-creating table via LoadJob autodetection.")
+
+    # 1. Load raw CSV into Bronze table
+    job_config = bigquery.LoadJobConfig(
+        source_format=bigquery.SourceFormat.CSV,
+        skip_leading_rows=1,
+        autodetect=not table_exists,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        allow_quoted_newlines=True,
+        ignore_unknown_values=True
+    )
+
+    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (autodetect={not table_exists})")
+    load_job = bq_client.load_table_from_uri(gcs_uri, table_id, job_config=job_config)
+    load_job.result()  # Wait for job completion
+    loaded_rows = load_job.output_rows or 0
+    logger.info(f"[INGEST] Successfully loaded {loaded_rows} rows into {table_id}")
+
+    # 2. Ensure all standard Medallion metadata columns exist
+    alter_sql = f"""
+    ALTER TABLE `{table_id}`
+    ADD COLUMN IF NOT EXISTS ingest_date DATE,
+    ADD COLUMN IF NOT EXISTS ingest_timestamp TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS file_name STRING,
+    ADD COLUMN IF NOT EXISTS source_id STRING,
+    ADD COLUMN IF NOT EXISTS source_entity_id STRING;
+    """
+    try:
+        bq_client.query(alter_sql).result()
+    except Exception as exc:
+        logger.warning(f"Metadata column check note on {table_id}: {exc}")
+
+    # 3. Populate missing metadata columns on new records
+    update_metadata_sql = f"""
+    UPDATE `{table_id}`
+    SET
+        ingest_date = COALESCE(ingest_date, @ingest_date),
+        ingest_timestamp = COALESCE(ingest_timestamp, @ingest_ts),
+        file_name = COALESCE(file_name, @file_name),
+        source_id = COALESCE(source_id, @source_id),
+        source_entity_id = COALESCE(source_entity_id, GENERATE_UUID())
+    WHERE ingest_date IS NULL OR file_name IS NULL OR source_id IS NULL OR source_entity_id IS NULL;
+    """
+    update_job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+            bigquery.ScalarQueryParameter("ingest_ts", "TIMESTAMP", ingest_timestamp),
+            bigquery.ScalarQueryParameter("file_name", "STRING", file_name),
+            bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+        ]
+    )
+    bq_client.query(update_metadata_sql, job_config=update_job_config).result()
+
+    # 4. Refresh bronze unified view so new tables are automatically discoverable
+    try:
+        bq_client.query(f"CALL `{PROJECT_ID}.{DATASET_BRONZE}.sp_refresh_raw_records_unified`()").result()
+    except Exception as exc:
+        logger.warning(f"Could not refresh raw_records_unified view: {exc}")
+
+    return loaded_rows
+
+
+def trigger_downstream_pipeline(
+    bq_client: bigquery.Client,
+    source_id: str,
+    ingest_date: date,
+    started_at: datetime
+) -> Dict[str, Any]:
+    """
+    Autonomous orchestration of Silver entity extraction and Gold identity resolution:
+    1. Checks ops_monitoring.source_catalog for pipeline_type (METADATA_DRIVEN vs DATAFORM_DAG).
+    2. Runs silver extraction (sp_transform_metadata_source or sp_transform_to_silver).
+    3. Runs gold consolidation (gold.sp_build_gold).
+    4. Runs discrepancy checks (ops_monitoring.sp_run_discrepancy_checks).
+    5. Records run metrics in ops_monitoring.pipeline_runs.
+    """
+    catalog_table = f"`{PROJECT_ID}.{DATASET_OPS}.source_catalog`"
+    catalog_query = f"""
+    SELECT pipeline_type, is_active
+    FROM {catalog_table}
+    WHERE source_id = @source_id
+    LIMIT 1
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("source_id", "STRING", source_id)
+        ]
+    )
+    results = list(bq_client.query(catalog_query, job_config=job_config).result())
+
+    if not results:
+        logger.warning(
+            f"[CATALOG] Source '{source_id}' is not yet registered in {catalog_table}. "
+            "Bronze data loaded successfully. Register source YAML to enable automatic Silver extraction."
+        )
+        return {"status": "SKIPPED_UNREGISTERED", "reason": "source_not_in_catalog"}
+
+    pipeline_type = results[0].pipeline_type
+    is_active = results[0].is_active
+
+    if not is_active:
+        logger.info(f"[CATALOG] Source '{source_id}' is marked inactive. Skipping Silver extraction.")
+        return {"status": "SKIPPED_INACTIVE"}
+
+    logger.info(f"[PIPELINE] Executing Silver extraction for {source_id} (type: {pipeline_type})...")
+
+    # Step 2: Silver Transformation
+    if pipeline_type == "METADATA_DRIVEN":
+        silver_call = f"CALL `{PROJECT_ID}.{DATASET_SILVER}.sp_transform_metadata_source`(@source_id, @ingest_date)"
+        silver_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+            ]
+        )
+        bq_client.query(silver_call, job_config=silver_job_config).result()
+    else:
+        # DATAFORM_DAG complex source (e.g. index_0020, index_0500)
+        silver_call = f"CALL `{PROJECT_ID}.{DATASET_SILVER}.sp_transform_to_silver`(@ingest_date)"
+        silver_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+            ]
+        )
+        bq_client.query(silver_call, job_config=silver_job_config).result()
+
+    # Step 3: Gold Identity Resolution & Consolidation
+    logger.info(f"[PIPELINE] Executing Gold layer consolidation for ingest_date={ingest_date}...")
+    gold_call = f"CALL `{PROJECT_ID}.{DATASET_GOLD}.sp_build_gold`(@ingest_date)"
+    gold_job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+        ]
+    )
+    bq_client.query(gold_call, job_config=gold_job_config).result()
+
+    # Step 4: Discrepancy & Integrity Checks
+    logger.info(f"[PIPELINE] Running automated discrepancy checks for ingest_date={ingest_date}...")
+    disc_call = f"CALL `{PROJECT_ID}.{DATASET_OPS}.sp_run_discrepancy_checks`(@ingest_date)"
+    disc_job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+        ]
+    )
+    bq_client.query(disc_call, job_config=disc_job_config).result()
+
+    # Step 5: Record execution in ops_monitoring.pipeline_runs
+    log_run_sql = f"""
+    INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
+        run_id, pipeline_name, ingest_date, started_at, completed_at, status,
+        total_bronze_rows, total_silver_rows, total_gold_rows
+    ) VALUES (
+        GENERATE_UUID(),
+        CONCAT('eventarc_autonomous_', @source_id),
+        @ingest_date,
+        @started_at,
+        CURRENT_TIMESTAMP(),
+        'SUCCESS',
+        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_records_unified` WHERE ingest_date = @ingest_date),
+        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE ingest_date = @ingest_date),
+        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date)
+    );
+    """
+    log_job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+            bigquery.ScalarQueryParameter("started_at", "TIMESTAMP", started_at),
+        ]
+    )
+    bq_client.query(log_run_sql, job_config=log_job_config).result()
+
+    logger.info(f"[PIPELINE] Complete Medallion cycle succeeded for {source_id} (Bronze -> Silver -> Gold).")
+    return {"status": "SUCCESS", "pipeline_type": pipeline_type}
+
+
+def update_manifest_status(
+    bq_client: bigquery.Client,
+    file_path: str,
+    status: str,
+    record_count: int,
+    error_message: Optional[str] = None
+):
+    manifest_table = f"`{PROJECT_ID}.{DATASET_OPS}.ingestion_manifest`"
+    sql = f"""
+    UPDATE {manifest_table}
+    SET
+        status = @status,
+        record_count = @record_count,
+        error_message = @error_message,
+        last_reupload_timestamp = CURRENT_TIMESTAMP()
+    WHERE file_path = @file_path
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("status", "STRING", status),
+            bigquery.ScalarQueryParameter("record_count", "INT64", record_count),
+            bigquery.ScalarQueryParameter("error_message", "STRING", error_message or ""),
+            bigquery.ScalarQueryParameter("file_path", "STRING", file_path),
+        ]
+    )
+    bq_client.query(sql, job_config=job_config).result()
+
+
+@functions_framework.cloud_event
+def on_gcs_object_finalized(cloud_event: CloudEvent) -> Dict[str, Any]:
+    """
+    Eventarc entrypoint for GCS Object Finalized events.
+    Triggered when any investigator or automated crawler drops a file into:
+    gs://<bucket>/raw/<source_id>/<filename>.csv
+
+    Executes:
+    1. Path validation & parsing
+    2. Idempotent re-upload verification via ops_monitoring.ingestion_manifest
+    3. Old record purging (if re-upload)
+    4. Bronze ingestion & metadata column augmentation
+    5. Silver entity extraction (dynamic YAML or Dataform staging)
+    6. Gold identity resolution & graph build
+    7. Automated quality & discrepancy auditing
+    """
+    data = cloud_event.data
+    bucket = data.get("bucket")
+    name = data.get("name")
+    size = data.get("size")
+    md5_hash = data.get("md5Hash")
+
+    if not bucket or not name:
+        logger.warning(f"Ignored invalid CloudEvent missing bucket or name: {data}")
+        return {"status": "SKIPPED", "reason": "missing_bucket_or_name"}
+
+    gcs_uri = f"gs://{bucket}/{name}"
+    logger.info(f"Incoming GCS event: {gcs_uri} (size: {size} bytes)")
+
+    # 1. Filter only files under raw/
+    parsed = parse_gcs_path(name)
+    if not parsed:
+        logger.info(f"Ignored non-raw file path: {name}")
+        return {"status": "SKIPPED", "reason": "not_in_raw_folder"}
+
+    source_id, file_name = parsed
+    target_table_id = f"{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}"
+
+    bq_client = get_bigquery_client()
+
+    try:
+        # 2. Check & Update Idempotent Manifest
+        ingest_date, ingest_ts, is_reupload, reupload_count = check_and_update_manifest(
+            bq_client=bq_client,
+            file_path=gcs_uri,
+            file_name=file_name,
+            source_id=source_id,
+            file_hash=md5_hash
+        )
+
+        # 3. If re-upload: purge previous records for this file to ensure zero duplicates
+        if is_reupload:
+            purge_old_file_records(bq_client, target_table_id, file_name, ingest_date)
+
+        # 4. Ingest records into Bronze table and augment metadata
+        row_count = load_file_into_bronze(
+            bq_client=bq_client,
+            gcs_uri=gcs_uri,
+            source_id=source_id,
+            file_name=file_name,
+            ingest_date=ingest_date,
+            ingest_timestamp=ingest_ts
+        )
+
+        # 5. Trigger Autonomous Downstream Medallion Pipeline (Silver -> Gold -> Quality Audit)
+        downstream_result = trigger_downstream_pipeline(
+            bq_client=bq_client,
+            source_id=source_id,
+            ingest_date=ingest_date,
+            started_at=ingest_ts
+        )
+
+        # 6. Finalize manifest status
+        update_manifest_status(
+            bq_client=bq_client,
+            file_path=gcs_uri,
+            status="COMPLETED",
+            record_count=row_count
+        )
+
+        response = {
+            "status": "SUCCESS",
+            "gcs_uri": gcs_uri,
+            "source_id": source_id,
+            "target_table": target_table_id,
+            "ingest_date": str(ingest_date),
+            "ingest_timestamp": ingest_ts.isoformat(),
+            "is_reupload": is_reupload,
+            "reupload_count": reupload_count,
+            "rows_loaded": row_count,
+            "downstream": downstream_result
+        }
+        logger.info(f"End-to-end ingestion pipeline completed successfully: {json.dumps(response)}")
+        return response
+
+    except Exception as exc:
+        logger.exception(f"Ingestion failed for {gcs_uri}: {str(exc)}")
+        update_manifest_status(
+            bq_client=bq_client,
+            file_path=gcs_uri,
+            status="FAILED",
+            record_count=0,
+            error_message=str(exc)
+        )
+        raise exc

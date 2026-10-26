@@ -19,7 +19,7 @@ venv.bak/
 data
 
 # Scripts
-main.py
+/main.py
 
 # Dataform local credentials
 .df-credentials.json
