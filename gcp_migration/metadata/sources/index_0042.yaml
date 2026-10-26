@@ -1,0 +1,22 @@
+source_id: "index_0042"
+name: "Courier & Food Delivery Service"
+pipeline_type: "METADATA_DRIVEN"
+description: "Online order checkouts with customer name, phone, email, delivery address, and device IP"
+target_entities:
+  persons:
+    enabled: true
+    full_name_col: "customer_name"
+    actuality_date_col: "order_date"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "phone"
+    - contact_type: "EMAIL"
+      value_col: "email"
+  addresses:
+    enabled: true
+    city_col: "delivery_city"
+    address_raw_col: "delivery_address"
+  digital_footprint:
+    - channel_type: "IP"
+      value_col: "device_ip"
+      timestamp_col: "order_date"

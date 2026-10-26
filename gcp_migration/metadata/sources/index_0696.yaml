@@ -1,0 +1,27 @@
+source_id: "index_0696"
+name: "Microloans Registry (Dozarplati)"
+pipeline_type: "METADATA_DRIVEN"
+description: "Applicant registry containing names, phone, email, registration address, and employment details"
+target_entities:
+  persons:
+    enabled: true
+    first_name_col: "first_name"
+    last_name_col: "last_name"
+    middle_name_col: "middle_name"
+    birth_date_col: "birth_date"
+    actuality_date_col: "application_date"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "mobile_phone"
+    - contact_type: "EMAIL"
+      value_col: "email"
+  addresses:
+    enabled: true
+    address_raw_col: "registration_address"
+  works:
+    enabled: true
+    organization_name_col: "organization_name"
+    job_title_col: "job_title"
+    salary_col: "loan_amount"
+    application_status_col: "loan_status"
+    actuality_date_col: "application_date"

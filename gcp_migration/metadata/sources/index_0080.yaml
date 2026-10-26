@@ -1,0 +1,33 @@
+source_id: "index_0080"
+name: "Gaming Platform Registrations"
+pipeline_type: "METADATA_DRIVEN"
+description: "Online player accounts with usernames, emails, phone, telegram, and IP addresses"
+target_entities:
+  persons:
+    enabled: true
+    full_name_col: "user_name"
+    birth_date_col: "birthday"
+    birth_place_col: "country"
+    actuality_date_col: "registration_time"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "phone"
+    - contact_type: "EMAIL"
+      value_col: "email"
+  addresses:
+    enabled: true
+    address_raw_col: "address"
+  documents:
+    - doc_type: 0
+      doc_type_name: "PASSPORT"
+      doc_serial_col: "passport"
+      authority_col: "passport_by"
+  digital_footprint:
+    - channel_type: "IP"
+      value_col: "last_ip"
+      country_col: "last_ip_country"
+      timestamp_col: "registration_time"
+    - channel_type: "TELEGRAM"
+      value_col: "telegram_id"
+      country_col: "country"
+      timestamp_col: "registration_time"

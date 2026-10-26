@@ -1,0 +1,77 @@
+name: Source Catalog Validation & Sync
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'gcp_migration/metadata/**'
+      - 'gcp_migration/cloud_functions/**'
+      - '.github/workflows/metadata_sync.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'gcp_migration/metadata/**'
+      - 'gcp_migration/cloud_functions/**'
+      - '.github/workflows/metadata_sync.yml'
+
+jobs:
+  validate-metadata:
+    name: Validate YAML Schema & Ingestion Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml cloudevents google-cloud-bigquery google-cloud-storage functions-framework
+
+      - name: Validate Source YAML Specifications
+        run: |
+          python gcp_migration/metadata/validate_catalog.py
+
+      - name: Run Cloud Run Function Unit Tests
+        run: |
+          python -m unittest gcp_migration/cloud_functions/gcs_ingest_trigger/test_ingest.py
+
+  sync-catalog-to-bigquery:
+    name: Sync Catalog to BigQuery (On Push)
+    needs: validate-metadata
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          pip install pyyaml google-cloud-bigquery
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/1044955798887/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'medallion-pipeline@medallion-project-512608.iam.gserviceaccount.com'
+
+      - name: Synchronize Catalog & Refresh Views
+        run: |
+          python gcp_migration/metadata/sync_catalog.py
+        env:
+          PROJECT_ID: "medallion-project-512608"
+          LOCATION: "europe-west1"

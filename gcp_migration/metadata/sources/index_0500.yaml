@@ -1,0 +1,17 @@
+source_id: "index_0500"
+name: "GIBDD SPb Traffic Police Vehicle Registrations"
+pipeline_type: "DATAFORM_DAG"
+description: "Vehicle registration registry with VIN, chassis, license plates, manufacture year, and corporate legal entity vs individual ownership resolution"
+dataform:
+  models:
+    staging: "stg_index_0500_vehicles"
+    silver: "silver_vehicles_index_0500"
+  assertions:
+    - "nonNull: [license_plate, fio]"
+    - "rowCondition: manufacture_year >= 1950"
+target_entities:
+  - "silver.vehicles"
+  - "silver.persons"
+  - "silver.works"
+  - "silver.contacts"
+  - "silver.documents"

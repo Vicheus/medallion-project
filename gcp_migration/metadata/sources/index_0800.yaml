@@ -1,0 +1,14 @@
+source_id: "index_0800"
+name: "E-Commerce Perfume Store (DuhiRF)"
+pipeline_type: "METADATA_DRIVEN"
+description: "Online customer accounts with names, birth dates, phone, and loyalty discounts"
+target_entities:
+  persons:
+    enabled: true
+    first_name_col: "first_name"
+    last_name_col: "last_name"
+    middle_name_col: "middle_name"
+    birth_date_col: "birthday"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "phone_number"

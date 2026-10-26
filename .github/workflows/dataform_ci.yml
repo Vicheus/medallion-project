@@ -1,0 +1,35 @@
+name: Dataform CI Quality Gate
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'gcp_migration/dataform/**'
+      - '.github/workflows/dataform_ci.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'gcp_migration/dataform/**'
+      - '.github/workflows/dataform_ci.yml'
+
+jobs:
+  compile-and-validate:
+    name: Compile Dataform DAG & Assertions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli@3.1.2
+
+      - name: Compile Dataform Project
+        run: |
+          echo "Compiling Dataform SQLX action DAG..."
+          dataform compile gcp_migration/dataform

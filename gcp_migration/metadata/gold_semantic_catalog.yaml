@@ -1,0 +1,99 @@
+version: 1
+catalog_name: gold_semantic_catalog
+project_id: medallion-project-512608
+dataset: gold
+location: europe-west1
+
+tables:
+  - name: person_profiles_master
+    type: table
+    domain: identity
+    grain: One row per unique resolved person across all data sources
+    primary_key: person_id
+    partition_by: ingest_date
+    cluster_by: [primary_full_name, birth_date, primary_phone]
+    purpose: Unified 360-degree master profile table with scalar primary fields and historical arrays.
+    when_to_use: When querying an individual's primary contact details, demographics, full name aliases, or historical documents across sources.
+    when_not_to_use: When querying specific rail passenger ticket itineraries or corporate employer directories.
+    example_sql: |
+      SELECT primary_full_name, primary_phone, primary_email, birth_date
+      FROM gold.person_profiles_master
+      WHERE primary_full_name = 'Стариков Андрей Владимирович';
+
+  - name: person_movements_fact
+    type: table
+    domain: transit
+    grain: One row per travel/ticket movement event
+    primary_key: movement_id
+    foreign_keys: [person_id]
+    partition_by: departure_date
+    cluster_by: [port_from, port_to, passenger_full_name]
+    purpose: Denormalized passenger rail transit movement fact table.
+    when_to_use: When querying train routes, stations, passenger departures, seat classes, or co-travelers.
+    when_not_to_use: When searching for general contact information without travel context.
+    example_sql: |
+      SELECT passenger_full_name, port_from, port_to, departure_date, train_number, seat
+      FROM gold.person_movements_fact
+      WHERE port_from = 'МОСКВА' AND departure_date >= '2013-11-01';
+
+  - name: person_employment_fact
+    type: table
+    domain: employment
+    grain: One row per person-company employment record
+    primary_key: employment_id
+    foreign_keys: [person_id]
+    partition_by: ingest_date
+    cluster_by: [company_name, company_inn, person_full_name]
+    purpose: Denormalized corporate employment and loan applicant affiliations.
+    when_to_use: When querying company staff, job titles, or corporate INN/OGRN records.
+    when_not_to_use: When querying travel movements or car ownership.
+    example_sql: |
+      SELECT person_full_name, company_name, job_title, salary
+      FROM gold.person_employment_fact
+      WHERE UPPER(company_name) LIKE '%МАГНИТ%';
+
+  - name: person_vehicles_fact
+    type: table
+    domain: vehicles
+    grain: One row per vehicle registration
+    primary_key: vehicle_fact_id
+    foreign_keys: [person_id]
+    partition_by: ingest_date
+    cluster_by: [license_plate, vin, owner_full_name]
+    purpose: Denormalized vehicle ownership table.
+    when_to_use: When querying car ownership by license plate, VIN, or vehicle make/model.
+    when_not_to_use: When querying passenger rail tickets or employment.
+    example_sql: |
+      SELECT owner_full_name, license_plate, vin, model, color
+      FROM gold.person_vehicles_fact
+      WHERE license_plate = 'А777АА78';
+
+  - name: person_digital_footprint_fact
+    type: table
+    domain: digital
+    grain: One row per digital identifier session
+    primary_key: footprint_id
+    foreign_keys: [person_id]
+    partition_by: ingest_date
+    cluster_by: [channel_type, channel_value, user_full_name]
+    purpose: Denormalized digital footprint session table linking individuals to IPs and Telegram identifiers.
+    when_to_use: When querying account registration IPs, Telegram handles, or digital session timestamps.
+    when_not_to_use: When querying physical addresses or passport numbers.
+    example_sql: |
+      SELECT user_full_name, channel_type, channel_value, ip_country
+      FROM gold.person_digital_footprint_fact
+      WHERE channel_type = 'IP' AND channel_value = '185.220.101.5';
+
+  - name: person_documents_lookup
+    type: view
+    domain: documents
+    grain: One row per identity document
+    primary_key: document_serial
+    foreign_keys: [person_id]
+    purpose: Flattened document search lookup view linking persons to passports, INN, and SNILS.
+    when_to_use: When searching for an identity by document serial (passport, INN, SNILS) without requiring UNNEST().
+    when_not_to_use: When searching by phone number or email directly.
+    example_sql: |
+      SELECT primary_full_name, document_type_name, document_serial
+      FROM gold.person_documents_lookup
+      WHERE document_serial = '4012686811';

@@ -1,0 +1,30 @@
+source_id: "index_0001"
+name: "Retail Loyalty CRM (585 Zoloto)"
+pipeline_type: "METADATA_DRIVEN"
+description: "Customer loyalty program containing personal data, passport, contacts, and address"
+target_entities:
+  persons:
+    enabled: true
+    full_name_col: "fio"
+    sex_col: "sex"
+    birth_date_col: "birth_date"
+    actuality_date_col: "date_operation"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "phone_number"
+    - contact_type: "EMAIL"
+      value_col: "email"
+  addresses:
+    enabled: true
+    postal_code_col: "postal_code"
+    city_col: "city"
+    street_col: "street"
+    house_col: "house_number"
+    room_col: "room_number"
+  documents:
+    - doc_type: 0
+      doc_type_name: "PASSPORT"
+      doc_serial_col: "passport_number"
+      authority_col: "passport_text"
+      date_issue_col: "passport_valid_from"
+      date_expire_col: "passport_valid_to"

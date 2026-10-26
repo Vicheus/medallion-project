@@ -1,0 +1,19 @@
+config {
+  type: "incremental",
+  schema: "silver",
+  name: "vehicles",
+  tags: ["index_0500", "silver", "vehicles"]
+}
+
+SELECT
+  source_id,
+  source_entity_id,
+  ingest_date,
+  license_plate,
+  vin,
+  model,
+  manufacture_year,
+  color,
+  CURRENT_TIMESTAMP() AS created_at
+FROM ${ref("stg_index_0500_vehicles")}
+${when(incremental(), `WHERE ingest_date >= (SELECT MAX(ingest_date) FROM ${self()})`)}

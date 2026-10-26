@@ -21,5 +21,8 @@ data
 # Scripts
 main.py
 
+# Dataform local credentials
+.df-credentials.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,0 +1,43 @@
+source_id: "index_0801"
+name: "B2B Client Registry (SKB Techno)"
+pipeline_type: "METADATA_DRIVEN"
+description: "Legal entities and representatives registry with INN, OGRN, Passport, SNILS, and employment"
+target_entities:
+  persons:
+    enabled: true
+    first_name_col: "first_name"
+    last_name_col: "last_name"
+    middle_name_col: "middle_name"
+    birth_date_col: "birth_date"
+    birth_place_col: "birth_place"
+    sex_col: "sex"
+    actuality_date_col: "document_date"
+  contacts:
+    - contact_type: "PHONE"
+      value_col: "phone"
+    - contact_type: "EMAIL"
+      value_col: "email"
+  addresses:
+    enabled: true
+    address_raw_col: "address"
+  documents:
+    - doc_type: 0
+      doc_type_name: "PASSPORT"
+      doc_serial_col: "document_serial"
+      doc_number_col: "document_number"
+      date_issue_col: "document_date"
+      authority_col: "document_issuer"
+      authority_code_col: "document_code"
+    - doc_type: 1
+      doc_type_name: "INN"
+      doc_serial_col: "inn_person"
+    - doc_type: 2
+      doc_type_name: "SNILS"
+      doc_serial_col: "snils"
+  works:
+    enabled: true
+    organization_name_col: "company_name"
+    job_title_col: "agent_title"
+    company_inn_col: "inn"
+    company_ogrn_col: "ogrn"
+    actuality_date_col: "document_date"
