@@ -12,7 +12,10 @@ import yaml
 
 REQUIRED_FIELDS = ["source_id", "name", "pipeline_type", "target_entities"]
 VALID_PIPELINE_TYPES = ["METADATA_DRIVEN", "DATAFORM_DAG"]
-VALID_ENTITIES = ["persons", "contacts", "addresses", "documents", "works", "digital_footprint"]
+VALID_ENTITIES = [
+    "persons", "contacts", "addresses", "documents",
+    "works", "digital_footprint", "movements", "vehicles"
+]
 VALID_CONTACT_TYPES = ["PHONE", "EMAIL"]
 VALID_FOOTPRINT_TYPES = ["IP", "TELEGRAM", "USER_AGENT"]
 
@@ -27,6 +30,17 @@ def validate_file(file_path: Path) -> list[str]:
 
     if not isinstance(data, dict):
         return ["Top-level element must be a dictionary/mapping"]
+
+    # Validate optional SLA config if present
+    if "sla" in data:
+        sla = data["sla"]
+        if not isinstance(sla, dict):
+            errors.append("'sla' must be a dictionary/mapping")
+        else:
+            if "max_staleness_hours" in sla and not isinstance(sla["max_staleness_hours"], int):
+                errors.append("'sla.max_staleness_hours' must be an integer")
+            if "min_expected_rows" in sla and not isinstance(sla["min_expected_rows"], int):
+                errors.append("'sla.min_expected_rows' must be an integer")
 
     # Check required fields
     for field in REQUIRED_FIELDS:
