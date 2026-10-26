@@ -16,25 +16,26 @@ SELECT
   source_id,
   source_entity_id,
   ingest_date,
-  TRIM(ticket_number) AS ticket_number,
-  silver.clean_name(passenger_name) AS passenger_name,
-  silver.parse_date_safe(birth_date) AS birth_date,
-  silver.clean_phone_e164(phone) AS phone,
-  TRIM(passenger_doc) AS passenger_doc,
-  silver.parse_date_safe(departure_date) AS departure_date,
-  silver.parse_date_safe(arrival_date) AS arrival_date,
-  UPPER(TRIM(port_from)) AS port_from,
-  UPPER(TRIM(port_to)) AS port_to,
-  TRIM(train) AS train_number,
-  COALESCE(UPPER(TRIM(coach_class)), 'UNKNOWN') AS coach_class,
-  TRIM(coach_number) AS coach_number,
-  TRIM(seat) AS seat,
-  COALESCE(UPPER(TRIM(seat_tier)), 'STANDARD') AS seat_tier,
+  TRIM(CAST(ticket_number AS STRING)) AS ticket_number,
+  silver.clean_name(CAST(passenger_name AS STRING)) AS passenger_name,
+  silver.parse_date_safe(CAST(birth_date AS STRING)) AS birth_date,
+  silver.clean_phone_e164(CAST(phone AS STRING)) AS phone,
+  TRIM(CAST(passenger_doc AS STRING)) AS passenger_doc,
+  silver.parse_date_safe(CAST(departure_date AS STRING)) AS departure_date,
+  silver.parse_date_safe(CAST(arrival_date AS STRING)) AS arrival_date,
+  UPPER(TRIM(CAST(port_from AS STRING))) AS port_from,
+  UPPER(TRIM(CAST(port_to AS STRING))) AS port_to,
+  TRIM(CAST(train AS STRING)) AS train_number,
+  COALESCE(UPPER(TRIM(CAST(coach_class AS STRING))), 'UNKNOWN') AS coach_class,
+  TRIM(CAST(coach_number AS STRING)) AS coach_number,
+  TRIM(CAST(seat AS STRING)) AS seat,
+  COALESCE(UPPER(TRIM(CAST(seat_tier AS STRING))), 'STANDARD') AS seat_tier,
   'RAIL' AS transport_type,
-  silver.parse_date_safe(ticket_date) AS ticket_date,
+  silver.parse_date_safe(CAST(ticket_date AS STRING)) AS ticket_date,
   CURRENT_TIMESTAMP() AS processed_at
 FROM ${ref("raw_index_0020")}
 WHERE passenger_name IS NOT NULL
   AND departure_date IS NOT NULL
   AND port_from IS NOT NULL
   AND port_to IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY source_id, source_entity_id ORDER BY ingest_timestamp DESC) = 1

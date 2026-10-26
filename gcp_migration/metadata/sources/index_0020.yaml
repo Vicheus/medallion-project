@@ -9,12 +9,11 @@ dataform:
   models:
     staging: "stg_index_0020_movements"
     silver: "silver_movements_index_0020"
+  tags:
+    - "index_0020"
   assertions:
     - "uniqueKey: [source_id, source_entity_id]"
     - "nonNull: [passenger_name, departure_date, port_from, port_to]"
     - "rowCondition: arrival_date >= departure_date"
 target_entities:
   - "silver.movements"
-  - "silver.persons"
-  - "silver.documents"
-  - "silver.contacts"

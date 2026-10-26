@@ -2,6 +2,7 @@ config {
   type: "incremental",
   schema: "silver",
   name: "movements",
+  uniqueKey: ["source_id", "source_entity_id"],
   tags: ["index_0020", "silver", "movements"]
 }
 

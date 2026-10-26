@@ -5,12 +5,14 @@ on:
     branches: [ main, master ]
     paths:
       - 'gcp_migration/metadata/**'
+      - 'gcp_migration/dataform/**'
       - 'gcp_migration/cloud_functions/**'
       - '.github/workflows/metadata_sync.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'gcp_migration/metadata/**'
+      - 'gcp_migration/dataform/**'
       - 'gcp_migration/cloud_functions/**'
       - '.github/workflows/metadata_sync.yml'
 
@@ -31,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyyaml cloudevents google-cloud-bigquery google-cloud-storage functions-framework
+          pip install pyyaml cloudevents google-cloud-bigquery google-cloud-storage google-cloud-dataform functions-framework
 
       - name: Validate Source YAML Specifications
         run: |
@@ -61,7 +63,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install pyyaml google-cloud-bigquery
+          pip install pyyaml google-cloud-bigquery google-cloud-dataform
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2

@@ -2,6 +2,7 @@ config {
   type: "incremental",
   schema: "silver",
   name: "vehicles",
+  uniqueKey: ["source_id", "source_entity_id"],
   tags: ["index_0500", "silver", "vehicles"]
 }
 

@@ -52,6 +52,8 @@ BEGIN
   DELETE FROM `silver.documents` WHERE source_id = p_source_id AND ingest_date = v_date;
   DELETE FROM `silver.works` WHERE source_id = p_source_id AND ingest_date = v_date;
   DELETE FROM `silver.digital_footprint` WHERE source_id = p_source_id AND ingest_date = v_date;
+  DELETE FROM `silver.movements` WHERE source_id = p_source_id AND ingest_date = v_date;
+  DELETE FROM `silver.vehicles` WHERE source_id = p_source_id AND ingest_date = v_date;
 
   -- ---------------------------------------------------------------------------
   -- 4. Entity: PERSONS
@@ -426,6 +428,81 @@ BEGIN
     END FOR;
   END IF;
 
+  -- ---------------------------------------------------------------------------
+  -- 10. Entity: MOVEMENTS (Dynamic Passenger / Transit)
+  -- ---------------------------------------------------------------------------
+  IF JSON_VALUE(v_spec.target_entities.movements.enabled) = 'true' THEN
+    SET v_sql = FORMAT("""
+      INSERT INTO `silver.movements` (
+        source_id, source_entity_id, ingest_date,
+        ticket_number, transport_type, departure_date,
+        port_from, port_to, train_number, seat_class, seat, passenger_doc
+      )
+      SELECT
+        source_id, source_entity_id, @v_date,
+        %s, %s, %s, %s, %s, %s, %s, %s, %s
+      FROM `bronze.%s`
+      WHERE ingest_date = @v_date
+        AND (%s IS NOT NULL OR %s IS NOT NULL)
+    """,
+      -- ticket_number
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.ticket_number_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.movements.ticket_number_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- transport_type
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.transport_type_val) IS NOT NULL THEN FORMAT("'%s'", JSON_VALUE(v_spec.target_entities.movements.transport_type_val)) WHEN JSON_VALUE(v_spec.target_entities.movements.transport_type_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.movements.transport_type_col)) ELSE "'RAIL'" END,
+      -- departure_date
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.departure_date_col) IS NOT NULL THEN FORMAT("silver.parse_date_safe(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.movements.departure_date_col)) ELSE "@v_date" END,
+      -- port_from
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.port_from_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.movements.port_from_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- port_to
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.port_to_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.movements.port_to_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- train_number
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.train_number_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.movements.train_number_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- seat_class
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.seat_class_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.movements.seat_class_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- seat
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.seat_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.movements.seat_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- passenger_doc
+      CASE WHEN JSON_VALUE(v_spec.target_entities.movements.passenger_doc_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.movements.passenger_doc_col)) ELSE "CAST(NULL AS STRING)" END,
+      v_table_name,
+      COALESCE(FORMAT("CAST(%s AS STRING)", JSON_VALUE(v_spec.target_entities.movements.port_from_col)), "source_entity_id"),
+      COALESCE(FORMAT("CAST(%s AS STRING)", JSON_VALUE(v_spec.target_entities.movements.ticket_number_col)), "source_entity_id")
+    );
+    EXECUTE IMMEDIATE v_sql USING v_date AS v_date;
+  END IF;
+
+  -- ---------------------------------------------------------------------------
+  -- 11. Entity: VEHICLES (Dynamic Automotive Registry)
+  -- ---------------------------------------------------------------------------
+  IF JSON_VALUE(v_spec.target_entities.vehicles.enabled) = 'true' THEN
+    SET v_sql = FORMAT("""
+      INSERT INTO `silver.vehicles` (
+        source_id, source_entity_id, ingest_date,
+        license_plate, vin, model, manufacture_year, color
+      )
+      SELECT
+        source_id, source_entity_id, @v_date,
+        %s, %s, %s, %s, %s
+      FROM `bronze.%s`
+      WHERE ingest_date = @v_date
+        AND (%s IS NOT NULL OR %s IS NOT NULL)
+    """,
+      -- license_plate
+      CASE WHEN JSON_VALUE(v_spec.target_entities.vehicles.license_plate_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.vehicles.license_plate_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- vin
+      CASE WHEN JSON_VALUE(v_spec.target_entities.vehicles.vin_col) IS NOT NULL THEN FORMAT("UPPER(TRIM(CAST(%s AS STRING)))", JSON_VALUE(v_spec.target_entities.vehicles.vin_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- model
+      CASE WHEN JSON_VALUE(v_spec.target_entities.vehicles.model_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.vehicles.model_col)) ELSE "CAST(NULL AS STRING)" END,
+      -- manufacture_year
+      CASE WHEN JSON_VALUE(v_spec.target_entities.vehicles.manufacture_year_col) IS NOT NULL THEN FORMAT("SAFE_CAST(%s AS INT64)", JSON_VALUE(v_spec.target_entities.vehicles.manufacture_year_col)) ELSE "CAST(NULL AS INT64)" END,
+      -- color
+      CASE WHEN JSON_VALUE(v_spec.target_entities.vehicles.color_col) IS NOT NULL THEN FORMAT("TRIM(CAST(%s AS STRING))", JSON_VALUE(v_spec.target_entities.vehicles.color_col)) ELSE "CAST(NULL AS STRING)" END,
+      v_table_name,
+      COALESCE(FORMAT("CAST(%s AS STRING)", JSON_VALUE(v_spec.target_entities.vehicles.license_plate_col)), "source_entity_id"),
+      COALESCE(FORMAT("CAST(%s AS STRING)", JSON_VALUE(v_spec.target_entities.vehicles.vin_col)), "source_entity_id")
+    );
+    EXECUTE IMMEDIATE v_sql USING v_date AS v_date;
+  END IF;
+
 END;
 
 -- =============================================================================
@@ -449,101 +526,15 @@ BEGIN
 END;
 
 -- =============================================================================
--- Procedure: silver.sp_transform_to_silver (Hybrid Dynamic Dispatcher)
--- Dispatches metadata sources dynamically, and executes Dataform-staged complex models safely.
--- OPTIONS(strict_mode=false) suppresses compile-time failures for staging views.
+-- Procedure: silver.sp_transform_to_silver (Fully Decoupled Dispatcher)
+-- Dispatches all metadata-driven sources dynamically.
+-- Pure Dataform DAG sources manage their own target writes without SQL hardcoding!
 -- =============================================================================
 CREATE OR REPLACE PROCEDURE `silver.sp_transform_to_silver`(p_ingest_date DATE)
 OPTIONS(strict_mode=false)
 BEGIN
   DECLARE v_date DATE DEFAULT COALESCE(p_ingest_date, CURRENT_DATE());
-  DECLARE v_has_0020 INT64 DEFAULT 0;
-  DECLARE v_has_0500 INT64 DEFAULT 0;
 
-  -- 1. Execute all active metadata-driven standard sources dynamically
+  -- Execute all active metadata-driven standard sources dynamically
   CALL `silver.sp_transform_all_metadata_sources`(v_date);
-
-  -- 2. Execute Dataform / Complex Staged Sources safely (checking table existence)
-  SET v_has_0020 = (SELECT COUNT(*) FROM `medallion-project-512608.bronze.INFORMATION_SCHEMA.TABLES` WHERE table_name = "raw_index_0020");
-  SET v_has_0500 = (SELECT COUNT(*) FROM `medallion-project-512608.bronze.INFORMATION_SCHEMA.TABLES` WHERE table_name = "raw_index_0500");
-
-  -- 2.1 Sirena Rail Movements (index_0020)
-  IF v_has_0020 > 0 THEN
-    DELETE FROM `silver.movements` WHERE ingest_date = v_date AND source_id = "index_0020";
-    DELETE FROM `silver.persons` WHERE ingest_date = v_date AND source_id = "index_0020";
-    DELETE FROM `silver.contacts` WHERE ingest_date = v_date AND source_id = "index_0020";
-    DELETE FROM `silver.documents` WHERE ingest_date = v_date AND source_id = "index_0020";
-
-    -- Insert into movements from validated staging view
-    INSERT INTO `silver.movements` (
-      source_id, source_entity_id, ingest_date, ticket_number, transport_type, departure_date,
-      port_from, port_to, train_number, seat_class, seat, passenger_doc
-    )
-    SELECT
-      source_id, source_entity_id, ingest_date, ticket_number, transport_type, departure_date,
-      port_from, port_to, train_number, coach_class, seat, passenger_doc
-    FROM `silver.stg_index_0020_movements`
-    WHERE ingest_date = v_date;
-
-    -- Passenger profile
-    INSERT INTO `silver.persons` (source_id, source_entity_id, ingest_date, full_name, birth_date, actuality_date)
-    SELECT source_id, source_entity_id, ingest_date, passenger_name, birth_date, ticket_date
-    FROM `silver.stg_index_0020_movements`
-    WHERE ingest_date = v_date AND passenger_name IS NOT NULL;
-
-    -- Passenger phone
-    INSERT INTO `silver.contacts` (source_id, source_entity_id, ingest_date, contact_type, contact_value, is_valid)
-    SELECT source_id, source_entity_id, ingest_date, "PHONE", phone, TRUE
-    FROM `silver.stg_index_0020_movements`
-    WHERE ingest_date = v_date AND phone IS NOT NULL;
-
-    -- Passenger document
-    INSERT INTO `silver.documents` (source_id, source_entity_id, ingest_date, doc_type, doc_type_name, doc_serial)
-    SELECT source_id, source_entity_id, ingest_date, 0, "PASSPORT", passenger_doc
-    FROM `silver.stg_index_0020_movements`
-    WHERE ingest_date = v_date AND passenger_doc IS NOT NULL;
-  END IF;
-
-  -- 2.2 GIBDD SPb Vehicles (index_0500)
-  IF v_has_0500 > 0 THEN
-    DELETE FROM `silver.vehicles` WHERE ingest_date = v_date AND source_id = "index_0500";
-    DELETE FROM `silver.persons` WHERE ingest_date = v_date AND source_id = "index_0500";
-    DELETE FROM `silver.contacts` WHERE ingest_date = v_date AND source_id = "index_0500";
-    DELETE FROM `silver.documents` WHERE ingest_date = v_date AND source_id = "index_0500";
-    DELETE FROM `silver.works` WHERE ingest_date = v_date AND source_id = "index_0500";
-
-    -- Insert into vehicles from validated staging view
-    INSERT INTO `silver.vehicles` (
-      source_id, source_entity_id, ingest_date, license_plate, vin, model, manufacture_year, color
-    )
-    SELECT
-      source_id, source_entity_id, ingest_date, license_plate, vin, model, manufacture_year, color
-    FROM `silver.stg_index_0500_vehicles`
-    WHERE ingest_date = v_date;
-
-    -- Owner profile
-    INSERT INTO `silver.persons` (source_id, source_entity_id, ingest_date, full_name, birth_date, actuality_date)
-    SELECT source_id, source_entity_id, ingest_date, owner_full_name, owner_birth_date, v_date
-    FROM `silver.stg_index_0500_vehicles`
-    WHERE ingest_date = v_date AND owner_full_name IS NOT NULL;
-
-    -- Owner phone
-    INSERT INTO `silver.contacts` (source_id, source_entity_id, ingest_date, contact_type, contact_value, is_valid)
-    SELECT source_id, source_entity_id, ingest_date, "PHONE", owner_phone, TRUE
-    FROM `silver.stg_index_0500_vehicles`
-    WHERE ingest_date = v_date AND owner_phone IS NOT NULL;
-
-    -- Owner passport
-    INSERT INTO `silver.documents` (source_id, source_entity_id, ingest_date, doc_type, doc_type_name, doc_serial)
-    SELECT source_id, source_entity_id, ingest_date, 0, "PASSPORT", owner_passport
-    FROM `silver.stg_index_0500_vehicles`
-    WHERE ingest_date = v_date AND owner_passport IS NOT NULL;
-
-    -- Corporate entity relationship if vehicle owned by company
-    INSERT INTO `silver.works` (source_id, source_entity_id, ingest_date, organization_name, company_inn, company_ogrn, actuality_date)
-    SELECT source_id, source_entity_id, ingest_date, company_name, company_inn, company_ogrn, v_date
-    FROM `silver.stg_index_0500_vehicles`
-    WHERE ingest_date = v_date AND company_name IS NOT NULL;
-  END IF;
-
 END;

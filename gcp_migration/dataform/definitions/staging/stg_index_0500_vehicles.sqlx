@@ -16,23 +16,24 @@ SELECT
   source_id,
   source_entity_id,
   ingest_date,
-  UPPER(TRIM(license_plate)) AS license_plate,
-  UPPER(TRIM(vin)) AS vin,
-  TRIM(model) AS model,
+  UPPER(TRIM(CAST(license_plate AS STRING))) AS license_plate,
+  UPPER(TRIM(CAST(vin AS STRING))) AS vin,
+  TRIM(CAST(model AS STRING)) AS model,
   SAFE_CAST(manufacture_year AS INT64) AS manufacture_year,
-  TRIM(color) AS color,
-  silver.clean_name(fio) AS owner_full_name,
-  silver.parse_date_safe(birth_date) AS owner_birth_date,
-  silver.clean_phone_e164(phone) AS owner_phone,
-  TRIM(passport) AS owner_passport,
-  TRIM(company_name) AS company_name,
-  TRIM(company_inn) AS company_inn,
-  TRIM(company_ogrn) AS company_ogrn,
+  TRIM(CAST(color AS STRING)) AS color,
+  silver.clean_name(CAST(fio AS STRING)) AS owner_full_name,
+  silver.parse_date_safe(CAST(birth_date AS STRING)) AS owner_birth_date,
+  silver.clean_phone_e164(CAST(phone AS STRING)) AS owner_phone,
+  TRIM(CAST(passport AS STRING)) AS owner_passport,
+  TRIM(CAST(company_name AS STRING)) AS company_name,
+  TRIM(CAST(company_inn AS STRING)) AS company_inn,
+  TRIM(CAST(company_ogrn AS STRING)) AS company_ogrn,
   CASE
-    WHEN company_inn IS NOT NULL AND company_inn != '' THEN 'CORPORATE'
+    WHEN company_inn IS NOT NULL AND TRIM(CAST(company_inn AS STRING)) != '' THEN 'CORPORATE'
     ELSE 'INDIVIDUAL'
   END AS ownership_type,
   CURRENT_TIMESTAMP() AS processed_at
 FROM ${ref("raw_index_0500")}
 WHERE license_plate IS NOT NULL
   AND fio IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY source_id, source_entity_id ORDER BY ingest_timestamp DESC) = 1

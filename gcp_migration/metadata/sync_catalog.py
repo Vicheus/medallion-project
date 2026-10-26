@@ -180,6 +180,44 @@ def sync_sources():
     except Exception as exc:
         print(f"  [WARN] Could not refresh unified view: {exc}")
 
+    sync_dataform_workspace()
+
+
+def sync_dataform_workspace():
+    """
+    Synchronizes local/repo Dataform files (SQLX, settings) into Cloud Dataform prod-workspace.
+    Ensures Cloud Dataform always has the latest DAG definitions without manual git linking.
+    """
+    dataform_dir = Path(__file__).resolve().parent.parent / "dataform"
+    if not dataform_dir.exists():
+        return
+
+    print("Checking Cloud Dataform workspace synchronization...")
+    try:
+        from google.cloud import dataform_v1
+        client = dataform_v1.DataformClient()
+        repo_path = client.repository_path(PROJECT_ID, LOCATION, "medallion-complex-pipelines")
+        ws_name = f"{repo_path}/workspaces/prod-workspace"
+
+        try:
+            client.get_workspace(name=ws_name)
+        except Exception:
+            client.create_workspace(parent=repo_path, workspace_id="prod-workspace")
+            print("  [OK] Created Cloud Dataform workspace 'prod-workspace'.")
+
+        synced_files = 0
+        for fpath in dataform_dir.rglob("*"):
+            if fpath.is_file() and not fpath.name.startswith("."):
+                rel_path = str(fpath.relative_to(dataform_dir))
+                content = fpath.read_bytes()
+                req = dataform_v1.WriteFileRequest(workspace=ws_name, path=rel_path, contents=content)
+                client.write_file(request=req)
+                synced_files += 1
+
+        print(f"  [OK] Successfully synchronized {synced_files} Dataform definitions to Cloud Dataform workspace.")
+    except Exception as exc:
+        print(f"  [WARN] Cloud Dataform workspace sync note: {exc}")
+
 
 if __name__ == "__main__":
     sync_sources()

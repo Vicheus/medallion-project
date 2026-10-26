@@ -9,12 +9,10 @@ dataform:
   models:
     staging: "stg_index_0500_vehicles"
     silver: "silver_vehicles_index_0500"
+  tags:
+    - "index_0500"
   assertions:
     - "nonNull: [license_plate, fio]"
     - "rowCondition: manufacture_year >= 1950"
 target_entities:
   - "silver.vehicles"
-  - "silver.persons"
-  - "silver.works"
-  - "silver.contacts"
-  - "silver.documents"

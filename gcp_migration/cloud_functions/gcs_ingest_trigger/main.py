@@ -331,14 +331,47 @@ def trigger_downstream_pipeline(
         )
         bq_client.query(silver_call, job_config=silver_job_config).result()
     else:
-        # DATAFORM_DAG complex source (e.g. index_0020, index_0500)
-        silver_call = f"CALL `{PROJECT_ID}.{DATASET_SILVER}.sp_transform_to_silver`(@ingest_date)"
-        silver_job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
-            ]
-        )
-        bq_client.query(silver_call, job_config=silver_job_config).result()
+        # DATAFORM_DAG: Autonomous tag-driven Dataform execution
+        try:
+            import time
+            from google.cloud import dataform_v1
+            df_client = dataform_v1.DataformClient()
+            repo_path = df_client.repository_path(PROJECT_ID, LOCATION, "medallion-complex-pipelines")
+            ws_name = f"{repo_path}/workspaces/prod-workspace"
+
+            # 1. Compile Dataform models from workspace
+            comp_req = dataform_v1.CreateCompilationResultRequest(
+                parent=repo_path,
+                compilation_result=dataform_v1.CompilationResult(workspace=ws_name)
+            )
+            comp_res = df_client.create_compilation_result(request=comp_req)
+
+            # 2. Invoke workflow invocation filtered purely by source_id tag
+            inv_req = dataform_v1.CreateWorkflowInvocationRequest(
+                parent=repo_path,
+                workflow_invocation=dataform_v1.WorkflowInvocation(
+                    compilation_result=comp_res.name,
+                    invocation_config=dataform_v1.InvocationConfig(
+                        included_tags=[source_id],
+                        transitive_dependencies_included=True
+                    )
+                )
+            )
+            inv_res = df_client.create_workflow_invocation(request=inv_req)
+            logger.info(f"[DATAFORM] Triggered Dataform workflow {inv_res.name} for tag: {source_id}")
+
+            # 3. Wait for Dataform workflow execution to succeed before Gold layer runs
+            for _ in range(30):
+                time.sleep(2)
+                inv = df_client.get_workflow_invocation(name=inv_res.name)
+                if inv.state.name == "SUCCEEDED":
+                    logger.info(f"[DATAFORM] Workflow for tag {source_id} SUCCEEDED.")
+                    break
+                elif inv.state.name in ("FAILED", "CANCELLED"):
+                    raise RuntimeError(f"Dataform workflow invocation {inv_res.name} failed with state {inv.state.name}")
+        except Exception as df_err:
+            logger.error(f"[DATAFORM] Execution error for {source_id}: {df_err}")
+            raise df_err
 
     # Step 3: Gold Identity Resolution & Consolidation
     logger.info(f"[PIPELINE] Executing Gold layer consolidation for ingest_date={ingest_date}...")
