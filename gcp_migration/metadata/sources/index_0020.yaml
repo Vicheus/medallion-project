@@ -2,6 +2,9 @@ source_id: "index_0020"
 name: "Sirena Rail & Transport Passenger Itinerary"
 pipeline_type: "DATAFORM_DAG"
 description: "Complex passenger transport itinerary with station codes, train routes, coach tiers, departure/arrival timestamps, and multi-hop legs"
+sla:
+  max_staleness_hours: 24
+  min_expected_rows: 50
 dataform:
   models:
     staging: "stg_index_0020_movements"

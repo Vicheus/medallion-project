@@ -2,6 +2,9 @@ source_id: "index_0500"
 name: "GIBDD SPb Traffic Police Vehicle Registrations"
 pipeline_type: "DATAFORM_DAG"
 description: "Vehicle registration registry with VIN, chassis, license plates, manufacture year, and corporate legal entity vs individual ownership resolution"
+sla:
+  max_staleness_hours: 24
+  min_expected_rows: 50
 dataform:
   models:
     staging: "stg_index_0500_vehicles"

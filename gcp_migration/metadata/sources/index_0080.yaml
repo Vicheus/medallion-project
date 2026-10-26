@@ -2,6 +2,9 @@ source_id: "index_0080"
 name: "Gaming Platform Registrations"
 pipeline_type: "METADATA_DRIVEN"
 description: "Online player accounts with usernames, emails, phone, telegram, and IP addresses"
+sla:
+  max_staleness_hours: 24
+  min_expected_rows: 50
 target_entities:
   persons:
     enabled: true

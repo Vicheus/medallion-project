@@ -2,6 +2,9 @@ source_id: "index_0696"
 name: "Microloans Registry (Dozarplati)"
 pipeline_type: "METADATA_DRIVEN"
 description: "Applicant registry containing names, phone, email, registration address, and employment details"
+sla:
+  max_staleness_hours: 24
+  min_expected_rows: 50
 target_entities:
   persons:
     enabled: true
