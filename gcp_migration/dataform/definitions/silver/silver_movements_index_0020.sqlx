@@ -21,4 +21,4 @@ SELECT
   passenger_doc,
   CURRENT_TIMESTAMP() AS created_at
 FROM ${ref("stg_index_0020_movements")}
-${when(incremental(), `WHERE departure_date >= COALESCE((SELECT MAX(departure_date) FROM ${self()}), '1970-01-01')`)}
+${when(incremental(), `WHERE ingest_date >= COALESCE((SELECT MAX(ingest_date) FROM ${self()}), '1970-01-01')`)}
