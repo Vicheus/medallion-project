@@ -249,20 +249,33 @@ BEGIN
 
   -- Count rows across layers
   SET v_bronze_count = (SELECT COUNT(*) FROM `bronze.raw_records_unified` WHERE ingest_date = v_date);
-  SET v_silver_count = (SELECT COUNT(*) FROM `silver.persons` WHERE ingest_date = v_date);
+  SET v_silver_count = (
+    SELECT COUNT(DISTINCT source_entity_id) FROM (
+      SELECT source_entity_id FROM `silver.persons` WHERE ingest_date = v_date
+      UNION DISTINCT
+      SELECT source_entity_id FROM `silver.vehicles` WHERE ingest_date = v_date
+      UNION DISTINCT
+      SELECT source_entity_id FROM `silver.movements` WHERE ingest_date = v_date
+    )
+  );
   SET v_gold_count = (SELECT COUNT(*) FROM `gold.person_profiles_master` WHERE ingest_date = v_date);
 
   -- ---------------------------------------------------------------------------
   -- Check 1: Bronze -> Silver Reconciliation (LEFT_ANTI Check)
   -- ---------------------------------------------------------------------------
-  -- Count how many raw records had completely unparseable names (filtered out)
+  -- Count how many raw records were filtered out during Silver extraction across all domain entities
   SET v_unmatched_ids = (
     SELECT COUNT(*)
     FROM `bronze.raw_records_unified` b
     WHERE b.ingest_date = v_date
       AND NOT EXISTS (
-        SELECT 1 FROM `silver.persons` s
-        WHERE s.source_entity_id = b.source_entity_id AND s.ingest_date = v_date
+        SELECT 1 FROM `silver.persons` s WHERE s.source_entity_id = b.source_entity_id AND s.ingest_date = v_date
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM `silver.vehicles` v WHERE v.source_entity_id = b.source_entity_id AND v.ingest_date = v_date
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM `silver.movements` m WHERE m.source_entity_id = b.source_entity_id AND m.ingest_date = v_date
       )
   );
 
