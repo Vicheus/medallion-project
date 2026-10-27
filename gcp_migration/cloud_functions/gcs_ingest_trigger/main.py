@@ -218,17 +218,18 @@ def load_file_into_bronze(
         table_exists = False
         logger.info(f"Table {table_id} does not exist. Auto-creating table via LoadJob autodetection.")
 
-    # 1. Load raw CSV into Bronze table
+    # 1. Load raw CSV into Bronze table with automated Schema Evolution (ALLOW_FIELD_ADDITION)
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.CSV,
         skip_leading_rows=1,
-        autodetect=not table_exists,
+        autodetect=True,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        schema_update_options=[bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION],
         allow_quoted_newlines=True,
         ignore_unknown_values=True
     )
 
-    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (autodetect={not table_exists})")
+    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (autodetect=True, schema_update=ALLOW_FIELD_ADDITION)")
     load_job = bq_client.load_table_from_uri(gcs_uri, table_id, job_config=job_config)
     load_job.result()  # Wait for job completion
     loaded_rows = load_job.output_rows or 0
