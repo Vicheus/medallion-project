@@ -343,57 +343,81 @@ BEGIN
     all_names, phones, emails, addresses, documents, works, vehicles, digital_footprints,
     source_ids, source_entity_ids, is_suspicious_cluster, suspicious_reason, ingest_date
   )
+  WITH aggregated_profiles AS (
+    SELECT
+      r.person_id,
+      -- Primary scalar attributes
+      ANY_VALUE(r.full_name) AS primary_full_name,
+      ANY_VALUE(r.sex_code) AS sex_code,
+      COALESCE(ANY_VALUE(r.sex_label), 'UNKNOWN') AS sex_label,
+      ANY_VALUE(r.birth_date) AS birth_date,
+      ANY_VALUE(r.birth_place) AS birth_place,
+      ANY_VALUE(ph.primary_phone) AS primary_phone,
+      ANY_VALUE(em.primary_email) AS primary_email,
+      ANY_VALUE(ad.primary_address) AS primary_address,
+      MAX(r.actuality_date) AS latest_actuality_date,
+      -- Arrays
+      ARRAY_AGG(DISTINCT r.full_name IGNORE NULLS) AS all_names,
+      COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[]) AS phones,
+      COALESCE(ANY_VALUE(em.emails), ARRAY<STRING>[]) AS emails,
+      COALESCE(ANY_VALUE(ad.addresses), ARRAY<STRING>[]) AS addresses,
+      COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[]) AS documents,
+      COALESCE(ANY_VALUE(wk.works), ARRAY<STRUCT<organization_name STRING, job_title STRING, company_inn STRING, company_ogrn STRING, salary NUMERIC, actuality_date DATE>>[]) AS works,
+      COALESCE(ANY_VALUE(vh.vehicles), ARRAY<STRUCT<license_plate STRING, vin STRING, model STRING, manufacture_year INT64, color STRING>>[]) AS vehicles,
+      COALESCE(ANY_VALUE(dg.digital_footprints), ARRAY<STRUCT<channel_type STRING, channel_value STRING, ip_country STRING, registration_time TIMESTAMP>>[]) AS digital_footprints,
+      ARRAY_AGG(DISTINCT r.source_id IGNORE NULLS) AS source_ids,
+      ARRAY_AGG(DISTINCT r.source_entity_id IGNORE NULLS) AS source_entity_ids
+    FROM temp_resolved_identities r
+    LEFT JOIN temp_person_phones ph ON r.person_id = ph.person_id
+    LEFT JOIN temp_person_emails em ON r.person_id = em.person_id
+    LEFT JOIN temp_person_addresses ad ON r.person_id = ad.person_id
+    LEFT JOIN temp_person_docs dc ON r.person_id = dc.person_id
+    LEFT JOIN temp_person_works wk ON r.person_id = wk.person_id
+    LEFT JOIN temp_person_vehicles vh ON r.person_id = vh.person_id
+    LEFT JOIN temp_person_digital dg ON r.person_id = dg.person_id
+    GROUP BY r.person_id
+  ),
+  classified_profiles AS (
+    SELECT
+      ap.*,
+      NULLIF(ARRAY_TO_STRING([
+        -- 1. Supernode Overgrouping
+        IF(ARRAY_LENGTH(ap.phones) > 10 OR ARRAY_LENGTH(ap.documents) > 10,
+           FORMAT('SUPERNODE_OVERGROUPING (%d phones, %d docs)', ARRAY_LENGTH(ap.phones), ARRAY_LENGTH(ap.documents)), NULL),
+        -- 2. Impossible/Anomalous Age
+        IF(ap.birth_date IS NOT NULL AND (DATE_DIFF(CURRENT_DATE(), ap.birth_date, YEAR) > 105 OR DATE_DIFF(CURRENT_DATE(), ap.birth_date, YEAR) < 14 OR ap.birth_date > CURRENT_DATE()),
+           FORMAT('ANOMALOUS_AGE (%d yrs, DOB: %s)', DATE_DIFF(CURRENT_DATE(), ap.birth_date, YEAR), CAST(ap.birth_date AS STRING)), NULL),
+        -- 3. Dummy / Placeholder Contact Identifiers
+        IF(EXISTS (SELECT 1 FROM UNNEST(ap.phones) p WHERE REGEXP_CONTAINS(p, r'^7(0{10}|1{10}|2{10}|3{10}|4{10}|5{10}|6{10}|7{10}|8{10}|9{10})$') OR p IN ('71234567890', '79876543210'))
+           OR EXISTS (SELECT 1 FROM UNNEST(ap.emails) e WHERE REGEXP_CONTAINS(e, r'@(?i)(test\.com|example\.com|placeholder\.org|noemail|invalid)')),
+           'DUMMY_CONTACT_USED', NULL),
+        -- 4. Document Issued Prior to Birth
+        IF(ap.birth_date IS NOT NULL AND EXISTS (SELECT 1 FROM UNNEST(ap.documents) d WHERE d.date_issue IS NOT NULL AND d.date_issue < ap.birth_date),
+           'DOCUMENT_TIMELINE_INCONSISTENCY', NULL),
+        -- 5. Placeholder Identity Name
+        IF(REGEXP_CONTAINS(LOWER(ap.primary_full_name), r'^(тест|test|admin|неизвестно|инкогнито|пользователь|client|user)($|\s)'),
+           'PLACEHOLDER_NAME', NULL),
+        -- 6. Financial / Salary Anomaly
+        IF(EXISTS (SELECT 1 FROM UNNEST(ap.works) w WHERE w.salary IS NOT NULL AND (w.salary < 0 OR w.salary > 50000000)),
+           'ANOMALOUS_FINANCIAL', NULL),
+        -- 7. Vehicle Manufacture Year Anomaly
+        IF(EXISTS (SELECT 1 FROM UNNEST(ap.vehicles) v WHERE v.manufacture_year IS NOT NULL AND (v.manufacture_year < 1920 OR v.manufacture_year > EXTRACT(YEAR FROM CURRENT_DATE()) + 1)),
+           'ANOMALOUS_VEHICLE_YEAR', NULL)
+      ], '; '), '') AS calculated_suspicious_reason
+    FROM aggregated_profiles ap
+  )
   SELECT
-    r.person_id,
-    -- Primary scalar attributes
-    ANY_VALUE(r.full_name) AS primary_full_name,
-    ANY_VALUE(r.sex_code) AS sex_code,
-    COALESCE(ANY_VALUE(r.sex_label), 'UNKNOWN') AS sex_label,
-    ANY_VALUE(r.birth_date) AS birth_date,
-    ANY_VALUE(r.birth_place) AS birth_place,
-    ANY_VALUE(ph.primary_phone) AS primary_phone,
-    ANY_VALUE(em.primary_email) AS primary_email,
-    ANY_VALUE(ad.primary_address) AS primary_address,
-    MAX(r.actuality_date) AS latest_actuality_date,
-    -- Arrays
-    ARRAY_AGG(DISTINCT r.full_name IGNORE NULLS) AS all_names,
-    COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[]) AS phones,
-    COALESCE(ANY_VALUE(em.emails), ARRAY<STRING>[]) AS emails,
-    COALESCE(ANY_VALUE(ad.addresses), ARRAY<STRING>[]) AS addresses,
-    COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[]) AS documents,
-    COALESCE(ANY_VALUE(wk.works), ARRAY<STRUCT<organization_name STRING, job_title STRING, company_inn STRING, company_ogrn STRING, salary NUMERIC, actuality_date DATE>>[]) AS works,
-    COALESCE(ANY_VALUE(vh.vehicles), ARRAY<STRUCT<license_plate STRING, vin STRING, model STRING, manufacture_year INT64, color STRING>>[]) AS vehicles,
-    COALESCE(ANY_VALUE(dg.digital_footprints), ARRAY<STRUCT<channel_type STRING, channel_value STRING, ip_country STRING, registration_time TIMESTAMP>>[]) AS digital_footprints,
-    ARRAY_AGG(DISTINCT r.source_id IGNORE NULLS) AS source_ids,
-    ARRAY_AGG(DISTINCT r.source_entity_id IGNORE NULLS) AS source_entity_ids,
-    -- Suspicious cluster classification
-    CASE
-      WHEN ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])) > 10
-        OR ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])) > 10
-      THEN TRUE
-      ELSE FALSE
-    END AS is_suspicious_cluster,
-    CASE
-      WHEN ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])) > 10
-        OR ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])) > 10
-      THEN FORMAT('SUPERNODE_OVERGROUPING: %d phones, %d documents',
-             ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])),
-             ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])))
-      ELSE NULL
-    END AS suspicious_reason,
+    person_id, primary_full_name, sex_code, sex_label, birth_date, birth_place,
+    primary_phone, primary_email, primary_address, latest_actuality_date,
+    all_names, phones, emails, addresses, documents, works, vehicles, digital_footprints,
+    source_ids, source_entity_ids,
+    (calculated_suspicious_reason IS NOT NULL) AS is_suspicious_cluster,
+    calculated_suspicious_reason AS suspicious_reason,
     v_date AS ingest_date
-  FROM temp_resolved_identities r
-  LEFT JOIN temp_person_phones ph ON r.person_id = ph.person_id
-  LEFT JOIN temp_person_emails em ON r.person_id = em.person_id
-  LEFT JOIN temp_person_addresses ad ON r.person_id = ad.person_id
-  LEFT JOIN temp_person_docs dc ON r.person_id = dc.person_id
-  LEFT JOIN temp_person_works wk ON r.person_id = wk.person_id
-  LEFT JOIN temp_person_vehicles vh ON r.person_id = vh.person_id
-  LEFT JOIN temp_person_digital dg ON r.person_id = dg.person_id
-  GROUP BY r.person_id;
+  FROM classified_profiles;
 
   -- Mirror suspicious clusters into ops_monitoring.quarantined_records for audit & observability
-  DELETE FROM `ops_monitoring.quarantined_records` WHERE ingest_date = v_date AND reason LIKE 'SUPERNODE_OVERGROUPING%';
+  DELETE FROM `ops_monitoring.quarantined_records` WHERE ingest_date = v_date;
   INSERT INTO `ops_monitoring.quarantined_records` (
     quarantine_id, source_id, source_entity_id, ingest_date, reason, raw_payload
   )
@@ -403,8 +427,8 @@ BEGIN
     g.person_id,
     v_date,
     g.suspicious_reason,
-    FORMAT('Name: %s, DOB: %s, Phones: %d, Docs: %d',
-      g.primary_full_name, CAST(g.birth_date AS STRING), ARRAY_LENGTH(g.phones), ARRAY_LENGTH(g.documents))
+    FORMAT('Name: %s, DOB: %s, PrimaryPhone: %s, Phones: %d, Docs: %d',
+      g.primary_full_name, CAST(g.birth_date AS STRING), COALESCE(g.primary_phone, 'None'), ARRAY_LENGTH(g.phones), ARRAY_LENGTH(g.documents))
   FROM `gold.person_profiles_master` g
   WHERE g.ingest_date = v_date AND g.is_suspicious_cluster = TRUE;
 

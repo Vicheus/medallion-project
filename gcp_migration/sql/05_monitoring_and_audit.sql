@@ -315,34 +315,33 @@ BEGIN
   );
 
   -- ---------------------------------------------------------------------------
-  -- Check 3: Super-Node / Invalid Grouping Explosion Check
+  -- Check 3: Gold Entity Anomaly & Suspicious Cluster Check
   -- ---------------------------------------------------------------------------
-  -- Flags any resolved person entity merged with > 10 distinct phones or > 10 documents
+  -- Flags any resolved person entity marked as suspicious (super-nodes, anomalous age, dummy contacts, timeline conflicts, etc.)
   SET (v_supernode_count, v_suspect_details) = (
     SELECT AS STRUCT
       COUNT(*),
       CASE
         WHEN COUNT(*) > 0 THEN
-          FORMAT('Super-nodes: %d. Sources: [%s]. Top suspect: "%s" (%d phones, %d docs, source: %s)',
+          FORMAT('Suspicious profiles: %d. Sources: [%s]. Top suspect: "%s" (Reason: %s, source: %s)',
             COUNT(*),
             COALESCE(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT s_id IGNORE NULLS), ', '), 'UNKNOWN'),
             COALESCE(ANY_VALUE(primary_full_name), 'UNKNOWN'),
-            COALESCE(MAX(ARRAY_LENGTH(phones)), 0),
-            COALESCE(MAX(ARRAY_LENGTH(documents)), 0),
+            COALESCE(ANY_VALUE(suspicious_reason), 'UNKNOWN'),
             COALESCE(ARRAY_TO_STRING(ANY_VALUE(source_ids), ', '), 'UNKNOWN')
           )
-        ELSE 'Pass: 0 super-nodes detected.'
+        ELSE 'Pass: 0 suspicious profiles detected.'
       END
     FROM `gold.person_profiles_master` g
     LEFT JOIN UNNEST(g.source_ids) AS s_id
-    WHERE g.ingest_date = v_date AND (ARRAY_LENGTH(g.phones) > 10 OR ARRAY_LENGTH(g.documents) > 10)
+    WHERE g.ingest_date = v_date AND g.is_suspicious_cluster = TRUE
   );
 
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
     log_id, check_name, check_category, layer_from, layer_to, expected_count, actual_count, discrepancy_count, status, details, ingest_date
   ) VALUES (
     GENERATE_UUID(),
-    'supernode_overgrouping_check',
+    'gold_suspicious_cluster_check',
     'ANOMALY',
     'silver',
     'gold',
