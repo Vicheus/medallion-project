@@ -172,10 +172,24 @@ class TestGcsIngestTrigger(unittest.TestCase):
         self.assertEqual(result["pipeline_type"], "METADATA_DRIVEN")
         self.assertTrue(mock_bq.query.called)
 
+    @patch("main.dataform_v1")
     @patch("main.get_bigquery_client")
-    def test_downstream_pipeline_dataform_dag(self, mock_get_client):
+    def test_downstream_pipeline_dataform_dag(self, mock_get_client, mock_df_v1):
         mock_bq = MagicMock()
         mock_get_client.return_value = mock_bq
+
+        # Mock Dataform Client and methods
+        mock_df = MagicMock()
+        mock_df_v1.DataformClient.return_value = mock_df
+        mock_comp = MagicMock()
+        mock_comp.name = "comp_test"
+        mock_df.create_compilation_result.return_value = mock_comp
+
+        mock_inv = MagicMock()
+        mock_inv.name = "inv_test"
+        mock_inv.state.name = "SUCCEEDED"
+        mock_df.create_workflow_invocation.return_value = mock_inv
+        mock_df.get_workflow_invocation.return_value = mock_inv
 
         # Mock catalog query returning DATAFORM_DAG
         mock_row = MagicMock()
@@ -196,6 +210,7 @@ class TestGcsIngestTrigger(unittest.TestCase):
         self.assertEqual(result["status"], "SUCCESS")
         self.assertEqual(result["pipeline_type"], "DATAFORM_DAG")
         self.assertTrue(mock_bq.query.called)
+        self.assertTrue(mock_df.create_workflow_invocation.called)
 
 
 if __name__ == "__main__":

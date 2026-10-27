@@ -23,6 +23,7 @@ import functions_framework
 from cloudevents.http import CloudEvent
 from google.cloud import bigquery
 from google.cloud import storage
+from google.cloud import dataform_v1
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gcs_ingest_trigger")
@@ -334,7 +335,6 @@ def trigger_downstream_pipeline(
         # DATAFORM_DAG: Autonomous tag-driven Dataform execution
         try:
             import time
-            from google.cloud import dataform_v1
             df_client = dataform_v1.DataformClient()
             repo_path = df_client.repository_path(PROJECT_ID, LOCATION, "medallion-complex-pipelines")
             ws_name = f"{repo_path}/workspaces/prod-workspace"
@@ -394,6 +394,12 @@ def trigger_downstream_pipeline(
     bq_client.query(disc_call, job_config=disc_job_config).result()
 
     # Step 5: Record execution in ops_monitoring.pipeline_runs
+    silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+    if source_id == "index_0020":
+        silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.movements` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+    elif source_id == "index_0500":
+        silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.vehicles` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+
     log_run_sql = f"""
     INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
         run_id, pipeline_name, ingest_date, started_at, completed_at, status,
@@ -405,9 +411,9 @@ def trigger_downstream_pipeline(
         @started_at,
         CURRENT_TIMESTAMP(),
         'SUCCESS',
-        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_records_unified` WHERE ingest_date = @ingest_date),
-        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE ingest_date = @ingest_date),
-        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date)
+        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}` WHERE ingest_date = @ingest_date),
+        {silver_count_expr},
+        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date AND @source_id IN UNNEST(source_ids))
     );
     """
     log_job_config = bigquery.QueryJobConfig(

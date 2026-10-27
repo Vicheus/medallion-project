@@ -81,29 +81,33 @@ CREATE TABLE IF NOT EXISTS `ops_monitoring.source_sla_config` (
 
 -- 5. Freshness Monitoring View (Dynamically resolves across source_catalog)
 CREATE OR REPLACE VIEW `ops_monitoring.v_source_freshness` AS
-WITH latest_source_ingest AS (
-  SELECT source_id, MAX(ingest_timestamp) AS last_ingest_ts, COUNT(*) AS row_count_today
+WITH source_history AS (
+  SELECT
+    source_id,
+    MAX(ingest_timestamp) AS last_ingest_ts,
+    COUNTIF(ingest_date = CURRENT_DATE()) AS row_count_today,
+    COUNT(*) AS total_rows_all_time
   FROM `bronze.raw_records_unified`
-  WHERE ingest_date = CURRENT_DATE()
   GROUP BY source_id
 )
 SELECT
   c.source_id,
   c.source_name,
-  COALESCE(l.last_ingest_ts, TIMESTAMP('1970-01-01')) AS last_ingest_timestamp,
-  TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), COALESCE(l.last_ingest_ts, TIMESTAMP('1970-01-01')), HOUR) AS hours_since_last_ingest,
-  COALESCE(l.row_count_today, 0) AS rows_ingested_today,
+  COALESCE(h.last_ingest_ts, TIMESTAMP('1970-01-01')) AS last_ingest_timestamp,
+  TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), COALESCE(h.last_ingest_ts, TIMESTAMP('1970-01-01')), HOUR) AS hours_since_last_ingest,
+  COALESCE(h.row_count_today, 0) AS rows_ingested_today,
   COALESCE(s.min_expected_rows, 50) AS min_expected_rows,
   COALESCE(s.max_staleness_hours, 24) AS max_staleness_hours,
   CASE
-    WHEN l.last_ingest_ts IS NULL THEN 'CRITICAL_NO_DATA'
-    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), l.last_ingest_ts, HOUR) > COALESCE(s.max_staleness_hours, 24) THEN 'STALE'
-    WHEN COALESCE(l.row_count_today, 0) < COALESCE(s.min_expected_rows, 50) THEN 'LOW_VOLUME_WARNING'
+    WHEN h.last_ingest_ts IS NULL THEN 'CRITICAL_NO_DATA'
+    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR) > COALESCE(s.max_staleness_hours, 24) THEN 'STALE'
+    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR) <= COALESCE(s.max_staleness_hours, 24) THEN 'HEALTHY'
+    WHEN COALESCE(h.row_count_today, 0) < COALESCE(s.min_expected_rows, 50) THEN 'LOW_VOLUME_WARNING'
     ELSE 'HEALTHY'
   END AS freshness_status
 FROM `ops_monitoring.source_catalog` c
 LEFT JOIN `ops_monitoring.source_sla_config` s ON c.source_id = s.source_id
-LEFT JOIN latest_source_ingest l ON c.source_id = l.source_id
+LEFT JOIN source_history h ON c.source_id = h.source_id
 WHERE c.is_active = TRUE;
 
 -- 6. Audit View: AI Agent Query Activity & Error Observability
