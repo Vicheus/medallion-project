@@ -393,6 +393,21 @@ def trigger_downstream_pipeline(
     )
     bq_client.query(disc_call, job_config=disc_job_config).result()
 
+    # Query discrepancy log to emit structured alert logs for Cloud Monitoring
+    disc_summary_sql = f"""
+    SELECT check_name, check_category, status, details
+    FROM `{PROJECT_ID}.{DATASET_OPS}.layer_discrepancy_log`
+    WHERE ingest_date = @ingest_date AND status IN ('WARNING', 'FAIL')
+    """
+    try:
+        for disc_row in bq_client.query(disc_summary_sql, job_config=disc_job_config).result():
+            if disc_row.status == "FAIL":
+                logger.error(f"[INTEGRITY_FAIL] {disc_row.check_name} ({disc_row.check_category}): {disc_row.details}")
+            else:
+                logger.warning(f"[ANOMALY] {disc_row.check_name} ({disc_row.check_category}): {disc_row.details}")
+    except Exception as disc_err:
+        logger.warning(f"Note: Could not query discrepancy summary: {disc_err}")
+
     # Step 5: Record execution in ops_monitoring.pipeline_runs
     silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
     if source_id == "index_0020":

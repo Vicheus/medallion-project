@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS `gold.person_profiles_master` (
   >> OPTIONS(description="Digital activity, IP addresses, and social identifiers"),
   source_ids ARRAY<STRING> OPTIONS(description="List of all source indexes containing records for this identity"),
   source_entity_ids ARRAY<STRING> OPTIONS(description="List of all Bronze/Silver source_entity_id keys resolved into this identity"),
+  is_suspicious_cluster BOOLEAN DEFAULT FALSE OPTIONS(description="Flagged as anomaly/super-node if exceeding 10 phones or docs"),
+  suspicious_reason STRING OPTIONS(description="Detailed reason for anomaly classification"),
   ingest_date DATE NOT NULL OPTIONS(description="Pipeline run partition date"),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 )
@@ -60,6 +62,13 @@ CLUSTER BY primary_full_name, birth_date, primary_phone
 OPTIONS(
   description="[PURPOSE]: Master 360-degree identity profile table resolving individuals across all 7 sources.\n[GRAIN]: One row per resolved unique person.\n[USE WHEN]: Looking up person contact info, demographics, document history, or cross-source profile.\n[DO NOT USE WHEN]: Querying transit ticket itineraries (use gold.person_movements_fact instead)."
 );
+
+-- Ensure schema evolution for existing gold master table
+ALTER TABLE `gold.person_profiles_master`
+ADD COLUMN IF NOT EXISTS is_suspicious_cluster BOOLEAN;
+
+ALTER TABLE `gold.person_profiles_master`
+ADD COLUMN IF NOT EXISTS suspicious_reason STRING;
 
 -- 2. Gold Fact Table: Transportation and Passenger Movements
 CREATE TABLE IF NOT EXISTS `gold.person_movements_fact` (
@@ -332,7 +341,7 @@ BEGIN
     person_id, primary_full_name, sex_code, sex_label, birth_date, birth_place,
     primary_phone, primary_email, primary_address, latest_actuality_date,
     all_names, phones, emails, addresses, documents, works, vehicles, digital_footprints,
-    source_ids, source_entity_ids, ingest_date
+    source_ids, source_entity_ids, is_suspicious_cluster, suspicious_reason, ingest_date
   )
   SELECT
     r.person_id,
@@ -357,6 +366,21 @@ BEGIN
     COALESCE(ANY_VALUE(dg.digital_footprints), ARRAY<STRUCT<channel_type STRING, channel_value STRING, ip_country STRING, registration_time TIMESTAMP>>[]) AS digital_footprints,
     ARRAY_AGG(DISTINCT r.source_id IGNORE NULLS) AS source_ids,
     ARRAY_AGG(DISTINCT r.source_entity_id IGNORE NULLS) AS source_entity_ids,
+    -- Suspicious cluster classification
+    CASE
+      WHEN ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])) > 10
+        OR ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])) > 10
+      THEN TRUE
+      ELSE FALSE
+    END AS is_suspicious_cluster,
+    CASE
+      WHEN ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])) > 10
+        OR ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])) > 10
+      THEN FORMAT('SUPERNODE_OVERGROUPING: %d phones, %d documents',
+             ARRAY_LENGTH(COALESCE(ANY_VALUE(ph.phones), ARRAY<STRING>[])),
+             ARRAY_LENGTH(COALESCE(ANY_VALUE(dc.documents), ARRAY<STRUCT<type INT64, type_name STRING, serial STRING, date_issue DATE, authority STRING, authority_code STRING>>[])))
+      ELSE NULL
+    END AS suspicious_reason,
     v_date AS ingest_date
   FROM temp_resolved_identities r
   LEFT JOIN temp_person_phones ph ON r.person_id = ph.person_id
@@ -367,6 +391,22 @@ BEGIN
   LEFT JOIN temp_person_vehicles vh ON r.person_id = vh.person_id
   LEFT JOIN temp_person_digital dg ON r.person_id = dg.person_id
   GROUP BY r.person_id;
+
+  -- Mirror suspicious clusters into ops_monitoring.quarantined_records for audit & observability
+  DELETE FROM `ops_monitoring.quarantined_records` WHERE ingest_date = v_date AND reason LIKE 'SUPERNODE_OVERGROUPING%';
+  INSERT INTO `ops_monitoring.quarantined_records` (
+    quarantine_id, source_id, source_entity_id, ingest_date, reason, raw_payload
+  )
+  SELECT
+    GENERATE_UUID(),
+    ARRAY_TO_STRING(g.source_ids, ','),
+    g.person_id,
+    v_date,
+    g.suspicious_reason,
+    FORMAT('Name: %s, DOB: %s, Phones: %d, Docs: %d',
+      g.primary_full_name, CAST(g.birth_date AS STRING), ARRAY_LENGTH(g.phones), ARRAY_LENGTH(g.documents))
+  FROM `gold.person_profiles_master` g
+  WHERE g.ingest_date = v_date AND g.is_suspicious_cluster = TRUE;
 
   -- ---------------------------------------------------------------------------
   -- 2. Build Fact Tables with Links to Person Profiles

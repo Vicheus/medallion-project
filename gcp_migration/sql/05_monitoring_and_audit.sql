@@ -91,9 +91,6 @@ UPDATE `ops_monitoring.source_sla_config`
 SET update_frequency = 'STATIC'
 WHERE update_frequency IS NULL;
 
-ALTER TABLE `ops_monitoring.source_sla_config`
-ALTER COLUMN max_staleness_hours DROP NOT NULL;
-
 -- 5. Freshness Monitoring View (Dynamically resolves across source_catalog)
 CREATE OR REPLACE VIEW `ops_monitoring.v_source_freshness` AS
 WITH source_history AS (
@@ -244,6 +241,7 @@ BEGIN
   DECLARE v_gold_count INT64;
   DECLARE v_unmatched_ids INT64;
   DECLARE v_supernode_count INT64;
+  DECLARE v_suspect_details STRING DEFAULT '';
   DECLARE v_hash_collisions INT64;
 
   -- Clean today's check logs
@@ -320,10 +318,24 @@ BEGIN
   -- Check 3: Super-Node / Invalid Grouping Explosion Check
   -- ---------------------------------------------------------------------------
   -- Flags any resolved person entity merged with > 10 distinct phones or > 10 documents
-  SET v_supernode_count = (
-    SELECT COUNT(*)
-    FROM `gold.person_profiles_master`
-    WHERE ingest_date = v_date AND (ARRAY_LENGTH(phones) > 10 OR ARRAY_LENGTH(documents) > 10)
+  SET (v_supernode_count, v_suspect_details) = (
+    SELECT AS STRUCT
+      COUNT(*),
+      CASE
+        WHEN COUNT(*) > 0 THEN
+          FORMAT('Super-nodes: %d. Sources: [%s]. Top suspect: "%s" (%d phones, %d docs, source: %s)',
+            COUNT(*),
+            COALESCE(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT s_id IGNORE NULLS), ', '), 'UNKNOWN'),
+            COALESCE(ANY_VALUE(primary_full_name), 'UNKNOWN'),
+            COALESCE(MAX(ARRAY_LENGTH(phones)), 0),
+            COALESCE(MAX(ARRAY_LENGTH(documents)), 0),
+            COALESCE(ARRAY_TO_STRING(ANY_VALUE(source_ids), ', '), 'UNKNOWN')
+          )
+        ELSE 'Pass: 0 super-nodes detected.'
+      END
+    FROM `gold.person_profiles_master` g
+    LEFT JOIN UNNEST(g.source_ids) AS s_id
+    WHERE g.ingest_date = v_date AND (ARRAY_LENGTH(g.phones) > 10 OR ARRAY_LENGTH(g.documents) > 10)
   );
 
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
@@ -338,7 +350,7 @@ BEGIN
     v_supernode_count,
     v_supernode_count,
     CASE WHEN v_supernode_count = 0 THEN 'PASS' ELSE 'WARNING' END,
-    FORMAT('Super-node entities detected with >10 phones/docs: %d', v_supernode_count),
+    v_suspect_details,
     v_date
   );
 
