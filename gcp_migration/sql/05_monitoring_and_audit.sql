@@ -73,11 +73,26 @@ CLUSTER BY status, check_category;
 -- 4. Table: Source SLA Freshness Configuration
 CREATE TABLE IF NOT EXISTS `ops_monitoring.source_sla_config` (
   source_id STRING NOT NULL,
-  max_staleness_hours INT64 NOT NULL,
+  update_frequency STRING DEFAULT 'STATIC',
+  max_staleness_hours INT64,
   min_expected_rows INT64 NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
+
+-- Ensure schema evolution for existing tables
+ALTER TABLE `ops_monitoring.source_sla_config`
+ADD COLUMN IF NOT EXISTS update_frequency STRING;
+
+ALTER TABLE `ops_monitoring.source_sla_config`
+ALTER COLUMN update_frequency SET DEFAULT 'STATIC';
+
+UPDATE `ops_monitoring.source_sla_config`
+SET update_frequency = 'STATIC'
+WHERE update_frequency IS NULL;
+
+ALTER TABLE `ops_monitoring.source_sla_config`
+ALTER COLUMN max_staleness_hours DROP NOT NULL;
 
 -- 5. Freshness Monitoring View (Dynamically resolves across source_catalog)
 CREATE OR REPLACE VIEW `ops_monitoring.v_source_freshness` AS
@@ -93,16 +108,25 @@ WITH source_history AS (
 SELECT
   c.source_id,
   c.source_name,
-  COALESCE(h.last_ingest_ts, TIMESTAMP('1970-01-01')) AS last_ingest_timestamp,
-  TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), COALESCE(h.last_ingest_ts, TIMESTAMP('1970-01-01')), HOUR) AS hours_since_last_ingest,
-  COALESCE(h.row_count_today, 0) AS rows_ingested_today,
-  COALESCE(s.min_expected_rows, 50) AS min_expected_rows,
-  COALESCE(s.max_staleness_hours, 24) AS max_staleness_hours,
+  COALESCE(s.update_frequency, 'STATIC') AS update_frequency,
+  h.last_ingest_ts AS last_ingest_timestamp,
   CASE
+    WHEN h.last_ingest_ts IS NOT NULL THEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR)
+    ELSE NULL
+  END AS hours_since_last_ingest,
+  COALESCE(h.row_count_today, 0) AS rows_ingested_today,
+  COALESCE(h.total_rows_all_time, 0) AS total_rows_all_time,
+  COALESCE(s.min_expected_rows, 50) AS min_expected_rows,
+  s.max_staleness_hours,
+  CASE
+    -- 1. No data has ever been loaded for this active source
     WHEN h.last_ingest_ts IS NULL THEN 'CRITICAL_NO_DATA'
-    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR) > COALESCE(s.max_staleness_hours, 24) THEN 'STALE'
-    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR) <= COALESCE(s.max_staleness_hours, 24) THEN 'HEALTHY'
-    WHEN COALESCE(h.row_count_today, 0) < COALESCE(s.min_expected_rows, 50) THEN 'LOW_VOLUME_WARNING'
+    -- 2. Low volume check against minimum expected rows
+    WHEN COALESCE(h.total_rows_all_time, 0) < COALESCE(s.min_expected_rows, 50) THEN 'LOW_VOLUME_WARNING'
+    -- 3. Static / one-off leak dump: Once loaded, permanently HEALTHY!
+    WHEN COALESCE(s.update_frequency, 'STATIC') = 'STATIC' OR s.max_staleness_hours IS NULL THEN 'HEALTHY'
+    -- 4. Recurring feed: evaluate staleness
+    WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), h.last_ingest_ts, HOUR) > s.max_staleness_hours THEN 'STALE'
     ELSE 'HEALTHY'
   END AS freshness_status
 FROM `ops_monitoring.source_catalog` c

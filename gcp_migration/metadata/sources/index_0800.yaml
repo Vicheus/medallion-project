@@ -3,7 +3,7 @@ name: "E-Commerce Perfume Store (DuhiRF)"
 pipeline_type: "METADATA_DRIVEN"
 description: "Online customer accounts with names, birth dates, phone, and loyalty discounts"
 sla:
-  max_staleness_hours: 24
+  update_frequency: "STATIC"
   min_expected_rows: 100
 target_entities:
   persons:

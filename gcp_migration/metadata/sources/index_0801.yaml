@@ -3,7 +3,7 @@ name: "B2B Client Registry (SKB Techno)"
 pipeline_type: "METADATA_DRIVEN"
 description: "Legal entities and representatives registry with INN, OGRN, Passport, SNILS, and employment"
 sla:
-  max_staleness_hours: 24
+  update_frequency: "STATIC"
   min_expected_rows: 50
 target_entities:
   persons:

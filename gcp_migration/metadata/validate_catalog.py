@@ -37,8 +37,12 @@ def validate_file(file_path: Path) -> list[str]:
         if not isinstance(sla, dict):
             errors.append("'sla' must be a dictionary/mapping")
         else:
-            if "max_staleness_hours" in sla and not isinstance(sla["max_staleness_hours"], int):
-                errors.append("'sla.max_staleness_hours' must be an integer")
+            if "update_frequency" in sla and sla["update_frequency"] not in ["STATIC", "RECURRING"]:
+                errors.append("'sla.update_frequency' must be 'STATIC' or 'RECURRING'")
+            if "is_static" in sla and not isinstance(sla["is_static"], bool):
+                errors.append("'sla.is_static' must be a boolean")
+            if "max_staleness_hours" in sla and sla["max_staleness_hours"] is not None and not isinstance(sla["max_staleness_hours"], int):
+                errors.append("'sla.max_staleness_hours' must be an integer or null")
             if "min_expected_rows" in sla and not isinstance(sla["min_expected_rows"], int):
                 errors.append("'sla.min_expected_rows' must be an integer")
 

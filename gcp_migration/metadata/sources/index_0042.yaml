@@ -3,7 +3,7 @@ name: "Courier & Food Delivery Service"
 pipeline_type: "METADATA_DRIVEN"
 description: "Online order checkouts with customer name, phone, email, delivery address, and device IP"
 sla:
-  max_staleness_hours: 24
+  update_frequency: "STATIC"
   min_expected_rows: 50
 target_entities:
   persons:
