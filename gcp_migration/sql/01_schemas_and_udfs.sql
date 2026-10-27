@@ -48,6 +48,10 @@ AS (
         WHEN p IS NULL THEN NULL
         -- Require at least 4 distinct digits (filters identical digits like 77777777777 and repetitive dummies)
         WHEN (SELECT COUNT(DISTINCT ch) FROM UNNEST(SPLIT(p, '')) AS ch) < 4 THEN NULL
+        -- Reject dummy sequential test patterns
+        WHEN p IN ('71234567890', '79876543210', '70123456789') THEN NULL
+        -- Reject all identical trailing digits (e.g. 70000000000, 79999999999)
+        WHEN REGEXP_CONTAINS(p, r'^7(0{10}|1{10}|2{10}|3{10}|4{10}|5{10}|6{10}|7{10}|8{10}|9{10})$') THEN NULL
         ELSE p
       END
     FROM standardized
@@ -68,8 +72,8 @@ AS (
         -- Verify standard email regex RFC-compliant format
         WHEN NOT REGEXP_CONTAINS(em, r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$') THEN NULL
         -- Filter out common placeholder & stop-list emails
-        WHEN REGEXP_CONTAINS(em, r'^(none|null|test|admin|info|no|user|na)@') THEN NULL
-        WHEN REGEXP_CONTAINS(em, r'@(no\.ru|test\.ru|example\.com|mail\.invalid|localhost)$') THEN NULL
+        WHEN REGEXP_CONTAINS(em, r'^(none|null|test|admin|info|no|user|na|dummy)@') THEN NULL
+        WHEN REGEXP_CONTAINS(em, r'@(?i)(no\.ru|test\.ru|example\.com|test\.com|placeholder\.org|mail\.invalid|localhost)$') THEN NULL
         ELSE em
       END
     FROM lower_em

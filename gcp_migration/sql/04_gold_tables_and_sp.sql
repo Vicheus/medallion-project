@@ -258,7 +258,7 @@ BEGIN
   LEFT JOIN (
     SELECT source_entity_id, contact_value,
       ROW_NUMBER() OVER(PARTITION BY source_entity_id ORDER BY created_at) AS rn
-    FROM `silver.contacts` WHERE contact_type = 'PHONE' AND ingest_date = v_date
+    FROM `silver.contacts` WHERE contact_type = 'PHONE' AND is_valid = TRUE AND ingest_date = v_date
   ) c ON p.source_entity_id = c.source_entity_id AND c.rn = 1
   LEFT JOIN (
     SELECT source_entity_id, doc_serial,
@@ -296,13 +296,13 @@ BEGIN
   CREATE TEMP TABLE temp_person_phones AS
   SELECT r.person_id, ARRAY_AGG(DISTINCT c.contact_value IGNORE NULLS) AS phones, ANY_VALUE(c.contact_value) AS primary_phone
   FROM temp_resolved_identities r
-  JOIN `silver.contacts` c ON r.source_entity_id = c.source_entity_id AND c.contact_type = 'PHONE' AND c.ingest_date = v_date
+  JOIN `silver.contacts` c ON r.source_entity_id = c.source_entity_id AND c.contact_type = 'PHONE' AND c.is_valid = TRUE AND c.ingest_date = v_date
   GROUP BY r.person_id;
 
   CREATE TEMP TABLE temp_person_emails AS
   SELECT r.person_id, ARRAY_AGG(DISTINCT c.contact_value IGNORE NULLS) AS emails, ANY_VALUE(c.contact_value) AS primary_email
   FROM temp_resolved_identities r
-  JOIN `silver.contacts` c ON r.source_entity_id = c.source_entity_id AND c.contact_type = 'EMAIL' AND c.ingest_date = v_date
+  JOIN `silver.contacts` c ON r.source_entity_id = c.source_entity_id AND c.contact_type = 'EMAIL' AND c.is_valid = TRUE AND c.ingest_date = v_date
   GROUP BY r.person_id;
 
   CREATE TEMP TABLE temp_person_addresses AS

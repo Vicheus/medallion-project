@@ -168,12 +168,15 @@ BEGIN
             source_entity_id,
             @v_date,
             '%s',
-            %s,
-            TRUE
+            COALESCE(%s, TRIM(CAST(%s AS STRING))),
+            CASE
+              WHEN %s IS NOT NULL THEN TRUE
+              ELSE FALSE
+            END AS is_valid
           FROM `bronze.%s`
           WHERE ingest_date = @v_date
             AND %s IS NOT NULL
-            AND %s != ''
+            AND TRIM(CAST(%s AS STRING)) != ''
         """,
           item.c_type,
           CASE
@@ -181,13 +184,15 @@ BEGIN
             WHEN item.c_type = 'EMAIL' THEN FORMAT("silver.clean_email(CAST(%s AS STRING))", item.val_col)
             ELSE FORMAT("TRIM(CAST(%s AS STRING))", item.val_col)
           END,
-          v_table_name,
-          FORMAT("CAST(%s AS STRING)", item.val_col),
+          item.val_col,
           CASE
             WHEN item.c_type = 'PHONE' THEN FORMAT("silver.clean_phone_e164(CAST(%s AS STRING))", item.val_col)
             WHEN item.c_type = 'EMAIL' THEN FORMAT("silver.clean_email(CAST(%s AS STRING))", item.val_col)
             ELSE FORMAT("TRIM(CAST(%s AS STRING))", item.val_col)
-          END
+          END,
+          v_table_name,
+          FORMAT("CAST(%s AS STRING)", item.val_col),
+          item.val_col
         );
         EXECUTE IMMEDIATE v_sql USING v_date AS v_date;
       END IF;
