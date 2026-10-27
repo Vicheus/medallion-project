@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS `ops_monitoring.layer_discrepancy_log` (
   log_id STRING NOT NULL,
   check_name STRING NOT NULL,
   check_category STRING NOT NULL,
+  source_id STRING,
+  run_id STRING,
   layer_from STRING,
   layer_to STRING,
   expected_count INT64,
@@ -232,11 +234,14 @@ END;
 -- =============================================================================
 -- Stored Procedure: sp_run_discrepancy_checks
 -- =============================================================================
-CREATE OR REPLACE PROCEDURE `ops_monitoring.sp_run_discrepancy_checks`(p_ingest_date DATE)
+CREATE OR REPLACE PROCEDURE `ops_monitoring.sp_run_discrepancy_checks`(
+  p_ingest_date DATE,
+  p_source_id STRING,
+  p_run_id STRING
+)
 OPTIONS(strict_mode=false)
 BEGIN
   DECLARE v_date DATE DEFAULT COALESCE(p_ingest_date, CURRENT_DATE());
-  DECLARE v_bronze_count INT64;
   DECLARE v_silver_count INT64;
   DECLARE v_gold_count INT64;
   DECLARE v_unmatched_ids INT64;
@@ -244,67 +249,90 @@ BEGIN
   DECLARE v_suspect_details STRING DEFAULT '';
   DECLARE v_hash_collisions INT64;
 
-  -- Clean today's check logs
-  DELETE FROM `ops_monitoring.layer_discrepancy_log` WHERE ingest_date = v_date;
+  -- Clean previous check logs for this specific run or source on that day
+  IF p_source_id IS NOT NULL THEN
+    DELETE FROM `ops_monitoring.layer_discrepancy_log` 
+    WHERE ingest_date = v_date AND (source_id = p_source_id OR source_id IS NULL);
+  ELSE
+    DELETE FROM `ops_monitoring.layer_discrepancy_log` 
+    WHERE ingest_date = v_date;
+  END IF;
 
   -- Count rows across layers
-  SET v_bronze_count = (SELECT COUNT(*) FROM `bronze.raw_records_unified` WHERE ingest_date = v_date);
   SET v_silver_count = (
     SELECT COUNT(DISTINCT source_entity_id) FROM (
-      SELECT source_entity_id FROM `silver.persons` WHERE ingest_date = v_date
+      SELECT source_id, source_entity_id FROM `silver.persons` WHERE ingest_date = v_date
       UNION DISTINCT
-      SELECT source_entity_id FROM `silver.vehicles` WHERE ingest_date = v_date
+      SELECT source_id, source_entity_id FROM `silver.vehicles` WHERE ingest_date = v_date
       UNION DISTINCT
-      SELECT source_entity_id FROM `silver.movements` WHERE ingest_date = v_date
+      SELECT source_id, source_entity_id FROM `silver.movements` WHERE ingest_date = v_date
     )
+    WHERE (p_source_id IS NULL OR source_id = p_source_id)
   );
-  SET v_gold_count = (SELECT COUNT(*) FROM `gold.person_profiles_master` WHERE ingest_date = v_date);
-
-  -- ---------------------------------------------------------------------------
-  -- Check 1: Bronze -> Silver Reconciliation (LEFT_ANTI Check)
-  -- ---------------------------------------------------------------------------
-  -- Count how many raw records were filtered out during Silver extraction across all domain entities
-  SET v_unmatched_ids = (
-    SELECT COUNT(*)
-    FROM `bronze.raw_records_unified` b
-    WHERE b.ingest_date = v_date
-      AND NOT EXISTS (
-        SELECT 1 FROM `silver.persons` s WHERE s.source_entity_id = b.source_entity_id AND s.ingest_date = v_date
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM `silver.vehicles` v WHERE v.source_entity_id = b.source_entity_id AND v.ingest_date = v_date
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM `silver.movements` m WHERE m.source_entity_id = b.source_entity_id AND m.ingest_date = v_date
-      )
+  SET v_gold_count = (
+    SELECT COUNT(*) 
+    FROM `gold.person_profiles_master` 
+    WHERE ingest_date = v_date
+      AND (p_source_id IS NULL OR p_source_id IN UNNEST(source_ids))
   );
 
+  -- ---------------------------------------------------------------------------
+  -- Check 1: Bronze -> Silver Reconciliation PER SOURCE_ID
+  -- ---------------------------------------------------------------------------
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
-    log_id, check_name, check_category, layer_from, layer_to, expected_count, actual_count, discrepancy_count, status, details, ingest_date
-  ) VALUES (
+    log_id, check_name, check_category, source_id, run_id, layer_from, layer_to,
+    expected_count, actual_count, discrepancy_count, status, details, ingest_date
+  )
+  WITH bronze_by_src AS (
+    SELECT source_id, COUNT(*) AS bronze_cnt
+    FROM `bronze.raw_records_unified`
+    WHERE ingest_date = v_date
+      AND (p_source_id IS NULL OR source_id = p_source_id)
+    GROUP BY source_id
+  ),
+  silver_by_src AS (
+    SELECT source_id, COUNT(DISTINCT source_entity_id) AS silver_cnt
+    FROM (
+      SELECT source_id, source_entity_id FROM `silver.persons` WHERE ingest_date = v_date
+      UNION DISTINCT
+      SELECT source_id, source_entity_id FROM `silver.vehicles` WHERE ingest_date = v_date
+      UNION DISTINCT
+      SELECT source_id, source_entity_id FROM `silver.movements` WHERE ingest_date = v_date
+    )
+    WHERE (p_source_id IS NULL OR source_id = p_source_id)
+    GROUP BY source_id
+  )
+  SELECT
     GENERATE_UUID(),
     'bronze_to_silver_drop_rate',
     'RECONCILIATION',
+    b.source_id,
+    p_run_id,
     'bronze',
     'silver',
-    v_bronze_count,
-    v_silver_count,
-    v_unmatched_ids,
-    CASE WHEN v_bronze_count > 0 AND (v_unmatched_ids / v_bronze_count) > 0.35 THEN 'WARNING' ELSE 'PASS' END,
-    FORMAT('Bronze rows: %d, Silver rows: %d, Filtered invalid rows: %d (%.2f%% drop rate)',
-      v_bronze_count, v_silver_count, v_unmatched_ids,
-      IF(v_bronze_count > 0, (v_unmatched_ids / v_bronze_count) * 100.0, 0.0)),
+    b.bronze_cnt,
+    COALESCE(s.silver_cnt, 0),
+    b.bronze_cnt - COALESCE(s.silver_cnt, 0),
+    CASE 
+      WHEN b.bronze_cnt > 0 AND (1.0 - COALESCE(s.silver_cnt, 0) / b.bronze_cnt) > 0.35 THEN 'WARNING' 
+      ELSE 'PASS' 
+    END,
+    FORMAT('Source [%s]: Bronze rows: %d, Silver rows: %d, Filtered invalid rows: %d (%.2f%% drop rate)',
+      b.source_id, b.bronze_cnt, COALESCE(s.silver_cnt, 0),
+      b.bronze_cnt - COALESCE(s.silver_cnt, 0),
+      IF(b.bronze_cnt > 0, (1.0 - COALESCE(s.silver_cnt, 0) / b.bronze_cnt) * 100.0, 0.0)),
     v_date
-  );
+  FROM bronze_by_src b
+  LEFT JOIN silver_by_src s ON b.source_id = s.source_id;
 
   -- ---------------------------------------------------------------------------
   -- Check 2: Silver -> Gold Identity Conservation
   -- ---------------------------------------------------------------------------
-  -- Asserts that every valid person in Silver with a non-null name is mapped into Gold
   SET v_unmatched_ids = (
     SELECT COUNT(DISTINCT s.source_entity_id)
     FROM `silver.persons` s
     WHERE s.ingest_date = v_date AND s.full_name IS NOT NULL
+      AND (p_source_id IS NULL OR s.source_id = p_source_id)
       AND NOT EXISTS (
         SELECT 1 FROM `gold.person_profiles_master` g, UNNEST(g.source_entity_ids) AS eid
         WHERE eid = s.source_entity_id AND g.ingest_date = v_date
@@ -312,25 +340,28 @@ BEGIN
   );
 
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
-    log_id, check_name, check_category, layer_from, layer_to, expected_count, actual_count, discrepancy_count, status, details, ingest_date
+    log_id, check_name, check_category, source_id, run_id, layer_from, layer_to,
+    expected_count, actual_count, discrepancy_count, status, details, ingest_date
   ) VALUES (
     GENERATE_UUID(),
     'silver_to_gold_conservation',
     'COMPLETENESS',
+    p_source_id,
+    p_run_id,
     'silver',
     'gold',
     v_silver_count,
     v_gold_count,
     v_unmatched_ids,
     CASE WHEN v_unmatched_ids = 0 THEN 'PASS' ELSE 'FAIL' END,
-    FORMAT('Unmapped Silver entity IDs in Gold: %d (expected 0 unexplained loss)', v_unmatched_ids),
+    FORMAT('Source [%s]: Unmapped Silver entity IDs in Gold: %d (expected 0 unexplained loss)', 
+      COALESCE(p_source_id, 'ALL'), v_unmatched_ids),
     v_date
   );
 
   -- ---------------------------------------------------------------------------
   -- Check 3: Gold Entity Anomaly & Suspicious Cluster Check
   -- ---------------------------------------------------------------------------
-  -- Flags any resolved person entity marked as suspicious (super-nodes, anomalous age, dummy contacts, timeline conflicts, etc.)
   SET (v_supernode_count, v_suspect_details) = (
     SELECT AS STRUCT
       COUNT(*),
@@ -343,19 +374,23 @@ BEGIN
             COALESCE(ANY_VALUE(suspicious_reason), 'UNKNOWN'),
             COALESCE(ARRAY_TO_STRING(ANY_VALUE(source_ids), ', '), 'UNKNOWN')
           )
-        ELSE 'Pass: 0 suspicious profiles detected.'
+        ELSE FORMAT('Source [%s]: Pass - 0 suspicious profiles detected.', COALESCE(p_source_id, 'ALL'))
       END
     FROM `gold.person_profiles_master` g
     LEFT JOIN UNNEST(g.source_ids) AS s_id
     WHERE g.ingest_date = v_date AND g.is_suspicious_cluster = TRUE
+      AND (p_source_id IS NULL OR p_source_id IN UNNEST(g.source_ids))
   );
 
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
-    log_id, check_name, check_category, layer_from, layer_to, expected_count, actual_count, discrepancy_count, status, details, ingest_date
+    log_id, check_name, check_category, source_id, run_id, layer_from, layer_to,
+    expected_count, actual_count, discrepancy_count, status, details, ingest_date
   ) VALUES (
     GENERATE_UUID(),
     'gold_suspicious_cluster_check',
     'ANOMALY',
+    p_source_id,
+    p_run_id,
     'silver',
     'gold',
     0,
@@ -369,7 +404,6 @@ BEGIN
   -- ---------------------------------------------------------------------------
   -- Check 4: Hash Collision Check
   -- ---------------------------------------------------------------------------
-  -- Asserts COUNT(*) = COUNT(DISTINCT person_id) in Gold
   SET v_hash_collisions = (
     SELECT (COUNT(*) - COUNT(DISTINCT person_id))
     FROM `gold.person_profiles_master`
@@ -377,18 +411,21 @@ BEGIN
   );
 
   INSERT INTO `ops_monitoring.layer_discrepancy_log` (
-    log_id, check_name, check_category, layer_from, layer_to, expected_count, actual_count, discrepancy_count, status, details, ingest_date
+    log_id, check_name, check_category, source_id, run_id, layer_from, layer_to,
+    expected_count, actual_count, discrepancy_count, status, details, ingest_date
   ) VALUES (
     GENERATE_UUID(),
     'gold_hash_collision_check',
     'INTEGRITY',
+    p_source_id,
+    p_run_id,
     'gold',
     'gold',
     0,
     v_hash_collisions,
     v_hash_collisions,
     CASE WHEN v_hash_collisions = 0 THEN 'PASS' ELSE 'FAIL' END,
-    FORMAT('Duplicate person_id hash collisions detected: %d', v_hash_collisions),
+    FORMAT('Source [%s]: Duplicate person_id hash collisions detected: %d', COALESCE(p_source_id, 'ALL'), v_hash_collisions),
     v_date
   );
 
@@ -421,7 +458,7 @@ BEGIN
     CALL `gold.sp_build_gold`(v_date);
 
     -- 4. Execute Automated Discrepancy & Health Checks
-    CALL `ops_monitoring.sp_run_discrepancy_checks`(v_date);
+    CALL `ops_monitoring.sp_run_discrepancy_checks`(v_date, NULL, v_run_id);
 
     -- 5. Count final metrics
     SET v_b_count = (SELECT COUNT(*) FROM `bronze.raw_records_unified` WHERE ingest_date = v_date);

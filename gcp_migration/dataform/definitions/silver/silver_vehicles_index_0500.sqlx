@@ -17,4 +17,4 @@ SELECT
   color,
   CURRENT_TIMESTAMP() AS created_at
 FROM ${ref("stg_index_0500_vehicles")}
-${when(incremental(), `WHERE ingest_date >= (SELECT MAX(ingest_date) FROM ${self()})`)}
+${when(incremental(), `WHERE ingest_date >= COALESCE((SELECT MAX(ingest_date) FROM ${self()}), '1970-01-01')`)}

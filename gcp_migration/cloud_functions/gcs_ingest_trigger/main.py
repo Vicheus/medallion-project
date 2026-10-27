@@ -15,6 +15,7 @@ Discrepancy Checks: ops_monitoring.sp_run_discrepancy_checks
 import os
 import re
 import json
+import uuid
 import logging
 from datetime import datetime, date, timezone
 from typing import Dict, Any, Tuple, Optional
@@ -281,7 +282,8 @@ def trigger_downstream_pipeline(
     bq_client: bigquery.Client,
     source_id: str,
     ingest_date: date,
-    started_at: datetime
+    started_at: datetime,
+    file_name: str = ""
 ) -> Dict[str, Any]:
     """
     Autonomous orchestration of Silver entity extraction and Gold identity resolution:
@@ -291,6 +293,7 @@ def trigger_downstream_pipeline(
     4. Runs discrepancy checks (ops_monitoring.sp_run_discrepancy_checks).
     5. Records run metrics in ops_monitoring.pipeline_runs.
     """
+    run_id = str(uuid.uuid4())
     catalog_table = f"`{PROJECT_ID}.{DATASET_OPS}.source_catalog`"
     catalog_query = f"""
     SELECT pipeline_type, is_active
@@ -319,129 +322,195 @@ def trigger_downstream_pipeline(
         logger.info(f"[CATALOG] Source '{source_id}' is marked inactive. Skipping Silver extraction.")
         return {"status": "SKIPPED_INACTIVE"}
 
-    logger.info(f"[PIPELINE] Executing Silver extraction for {source_id} (type: {pipeline_type})...")
+    logger.info(f"[PIPELINE] Executing Silver extraction for {source_id} (type: {pipeline_type}, run_id: {run_id})...")
 
-    # Step 2: Silver Transformation
-    if pipeline_type == "METADATA_DRIVEN":
-        silver_call = f"CALL `{PROJECT_ID}.{DATASET_SILVER}.sp_transform_metadata_source`(@source_id, @ingest_date)"
-        silver_job_config = bigquery.QueryJobConfig(
+    try:
+        # Step 2: Silver Transformation
+        if pipeline_type == "METADATA_DRIVEN":
+            silver_call = f"CALL `{PROJECT_ID}.{DATASET_SILVER}.sp_transform_metadata_source`(@source_id, @ingest_date)"
+            silver_job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                    bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                ]
+            )
+            bq_client.query(silver_call, job_config=silver_job_config).result()
+        else:
+            # DATAFORM_DAG: Autonomous tag-driven Dataform execution
+            try:
+                import time
+                df_client = dataform_v1.DataformClient()
+                repo_path = df_client.repository_path(PROJECT_ID, LOCATION, "medallion-complex-pipelines")
+                ws_name = f"{repo_path}/workspaces/prod-workspace"
+
+                # 1. Compile Dataform models from workspace
+                comp_req = dataform_v1.CreateCompilationResultRequest(
+                    parent=repo_path,
+                    compilation_result=dataform_v1.CompilationResult(workspace=ws_name)
+                )
+                comp_res = df_client.create_compilation_result(request=comp_req)
+
+                # 2. Invoke workflow invocation filtered purely by source_id tag
+                inv_req = dataform_v1.CreateWorkflowInvocationRequest(
+                    parent=repo_path,
+                    workflow_invocation=dataform_v1.WorkflowInvocation(
+                        compilation_result=comp_res.name,
+                        invocation_config=dataform_v1.InvocationConfig(
+                            included_tags=[source_id],
+                            transitive_dependencies_included=True
+                        )
+                    )
+                )
+                inv_res = df_client.create_workflow_invocation(request=inv_req)
+                logger.info(f"[DATAFORM] Triggered Dataform workflow {inv_res.name} for tag: {source_id}")
+
+                # 3. Wait for Dataform workflow execution to succeed before Gold layer runs
+                for _ in range(30):
+                    time.sleep(2)
+                    inv = df_client.get_workflow_invocation(name=inv_res.name)
+                    if inv.state.name == "SUCCEEDED":
+                        logger.info(f"[DATAFORM] Workflow for tag {source_id} SUCCEEDED.")
+                        break
+                    elif inv.state.name in ("FAILED", "CANCELLED"):
+                        raise RuntimeError(f"Dataform workflow invocation {inv_res.name} failed with state {inv.state.name}")
+            except Exception as df_err:
+                logger.error(f"[DATAFORM] Execution error for {source_id}: {df_err}")
+                raise df_err
+
+        # Step 3: Gold Identity Resolution & Consolidation
+        logger.info(f"[PIPELINE] Executing Gold layer consolidation for ingest_date={ingest_date}...")
+        gold_call = f"CALL `{PROJECT_ID}.{DATASET_GOLD}.sp_build_gold`(@ingest_date)"
+        gold_job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
                 bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
             ]
         )
-        bq_client.query(silver_call, job_config=silver_job_config).result()
-    else:
-        # DATAFORM_DAG: Autonomous tag-driven Dataform execution
+        bq_client.query(gold_call, job_config=gold_job_config).result()
+
+        # Step 4: Discrepancy & Integrity Checks (Scoped by source_id and run_id)
+        logger.info(f"[PIPELINE] Running automated discrepancy checks for source={source_id}, ingest_date={ingest_date}...")
+        disc_call = f"CALL `{PROJECT_ID}.{DATASET_OPS}.sp_run_discrepancy_checks`(@ingest_date, @source_id, @run_id)"
+        disc_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
+            ]
+        )
+        bq_client.query(disc_call, job_config=disc_job_config).result()
+
+        # Query discrepancy log for this run to emit structured alerts and determine run health
+        disc_summary_sql = f"""
+        SELECT check_name, check_category, source_id, status, details
+        FROM `{PROJECT_ID}.{DATASET_OPS}.layer_discrepancy_log`
+        WHERE run_id = @run_id AND status IN ('WARNING', 'FAIL')
+        """
+        has_fail = False
+        has_warning = False
+        anomaly_messages = []
         try:
-            import time
-            df_client = dataform_v1.DataformClient()
-            repo_path = df_client.repository_path(PROJECT_ID, LOCATION, "medallion-complex-pipelines")
-            ws_name = f"{repo_path}/workspaces/prod-workspace"
-
-            # 1. Compile Dataform models from workspace
-            comp_req = dataform_v1.CreateCompilationResultRequest(
-                parent=repo_path,
-                compilation_result=dataform_v1.CompilationResult(workspace=ws_name)
+            disc_q_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
+                ]
             )
-            comp_res = df_client.create_compilation_result(request=comp_req)
+            for disc_row in bq_client.query(disc_summary_sql, job_config=disc_q_config).result():
+                src_tag = f"source={disc_row.source_id or source_id} file={file_name} run_id={run_id}"
+                msg = f"{disc_row.check_name} ({disc_row.check_category}): {disc_row.details}"
+                anomaly_messages.append(f"[{disc_row.source_id or source_id}] {msg}")
+                if disc_row.status == "FAIL":
+                    has_fail = True
+                    logger.error(f"[INTEGRITY_FAIL] [{src_tag}] {msg}")
+                else:
+                    has_warning = True
+                    logger.warning(f"[ANOMALY] [{src_tag}] {msg}")
+        except Exception as disc_err:
+            logger.warning(f"Note: Could not query discrepancy summary: {disc_err}")
 
-            # 2. Invoke workflow invocation filtered purely by source_id tag
-            inv_req = dataform_v1.CreateWorkflowInvocationRequest(
-                parent=repo_path,
-                workflow_invocation=dataform_v1.WorkflowInvocation(
-                    compilation_result=comp_res.name,
-                    invocation_config=dataform_v1.InvocationConfig(
-                        included_tags=[source_id],
-                        transitive_dependencies_included=True
-                    )
+        # Step 5: Record execution in ops_monitoring.pipeline_runs
+        silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+        if source_id == "index_0020":
+            silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.movements` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+        elif source_id == "index_0500":
+            silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.vehicles` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
+
+        if has_fail:
+            final_status = "FAILED"
+        elif has_warning:
+            final_status = "WARNING"
+        else:
+            final_status = "SUCCESS"
+
+        combined_error = "; ".join(anomaly_messages) if anomaly_messages else None
+
+        log_run_sql = f"""
+        INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
+            run_id, pipeline_name, ingest_date, started_at, completed_at, status,
+            total_bronze_rows, total_silver_rows, total_gold_rows, error_message
+        ) VALUES (
+            @run_id,
+            CONCAT('eventarc_autonomous_', @source_id),
+            @ingest_date,
+            @started_at,
+            CURRENT_TIMESTAMP(),
+            @status,
+            (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}` WHERE ingest_date = @ingest_date),
+            {silver_count_expr},
+            (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date AND @source_id IN UNNEST(source_ids)),
+            @error_message
+        );
+        """
+        log_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                bigquery.ScalarQueryParameter("started_at", "TIMESTAMP", started_at),
+                bigquery.ScalarQueryParameter("status", "STRING", final_status),
+                bigquery.ScalarQueryParameter("error_message", "STRING", combined_error),
+            ]
+        )
+        bq_client.query(log_run_sql, job_config=log_job_config).result()
+
+        logger.info(f"[PIPELINE] Complete Medallion cycle for {source_id} finished with status={final_status} (run_id: {run_id}).")
+        return {"status": final_status, "pipeline_type": pipeline_type, "run_id": run_id, "anomalies": anomaly_messages}
+
+    except Exception as exc:
+        err_msg = f"Pipeline execution failed for source={source_id} file={file_name}: {exc}"
+        logger.error(f"[ERROR] [source={source_id} file={file_name} run_id={run_id}] {err_msg}")
+        try:
+            fail_sql = f"""
+            INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
+                run_id, pipeline_name, ingest_date, started_at, completed_at, status,
+                total_bronze_rows, total_silver_rows, total_gold_rows, error_message
+            ) VALUES (
+                @run_id,
+                CONCAT('eventarc_autonomous_', @source_id),
+                @ingest_date,
+                @started_at,
+                CURRENT_TIMESTAMP(),
+                'FAILED',
+                (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}` WHERE ingest_date = @ingest_date),
+                0,
+                0,
+                @error_message
+            );
+            """
+            bq_client.query(
+                fail_sql,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
+                        bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                        bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                        bigquery.ScalarQueryParameter("started_at", "TIMESTAMP", started_at),
+                        bigquery.ScalarQueryParameter("error_message", "STRING", str(exc)),
+                    ]
                 )
-            )
-            inv_res = df_client.create_workflow_invocation(request=inv_req)
-            logger.info(f"[DATAFORM] Triggered Dataform workflow {inv_res.name} for tag: {source_id}")
-
-            # 3. Wait for Dataform workflow execution to succeed before Gold layer runs
-            for _ in range(30):
-                time.sleep(2)
-                inv = df_client.get_workflow_invocation(name=inv_res.name)
-                if inv.state.name == "SUCCEEDED":
-                    logger.info(f"[DATAFORM] Workflow for tag {source_id} SUCCEEDED.")
-                    break
-                elif inv.state.name in ("FAILED", "CANCELLED"):
-                    raise RuntimeError(f"Dataform workflow invocation {inv_res.name} failed with state {inv.state.name}")
-        except Exception as df_err:
-            logger.error(f"[DATAFORM] Execution error for {source_id}: {df_err}")
-            raise df_err
-
-    # Step 3: Gold Identity Resolution & Consolidation
-    logger.info(f"[PIPELINE] Executing Gold layer consolidation for ingest_date={ingest_date}...")
-    gold_call = f"CALL `{PROJECT_ID}.{DATASET_GOLD}.sp_build_gold`(@ingest_date)"
-    gold_job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
-        ]
-    )
-    bq_client.query(gold_call, job_config=gold_job_config).result()
-
-    # Step 4: Discrepancy & Integrity Checks
-    logger.info(f"[PIPELINE] Running automated discrepancy checks for ingest_date={ingest_date}...")
-    disc_call = f"CALL `{PROJECT_ID}.{DATASET_OPS}.sp_run_discrepancy_checks`(@ingest_date)"
-    disc_job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
-        ]
-    )
-    bq_client.query(disc_call, job_config=disc_job_config).result()
-
-    # Query discrepancy log to emit structured alert logs for Cloud Monitoring
-    disc_summary_sql = f"""
-    SELECT check_name, check_category, status, details
-    FROM `{PROJECT_ID}.{DATASET_OPS}.layer_discrepancy_log`
-    WHERE ingest_date = @ingest_date AND status IN ('WARNING', 'FAIL')
-    """
-    try:
-        for disc_row in bq_client.query(disc_summary_sql, job_config=disc_job_config).result():
-            if disc_row.status == "FAIL":
-                logger.error(f"[INTEGRITY_FAIL] {disc_row.check_name} ({disc_row.check_category}): {disc_row.details}")
-            else:
-                logger.warning(f"[ANOMALY] {disc_row.check_name} ({disc_row.check_category}): {disc_row.details}")
-    except Exception as disc_err:
-        logger.warning(f"Note: Could not query discrepancy summary: {disc_err}")
-
-    # Step 5: Record execution in ops_monitoring.pipeline_runs
-    silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
-    if source_id == "index_0020":
-        silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.movements` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
-    elif source_id == "index_0500":
-        silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.vehicles` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
-
-    log_run_sql = f"""
-    INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
-        run_id, pipeline_name, ingest_date, started_at, completed_at, status,
-        total_bronze_rows, total_silver_rows, total_gold_rows
-    ) VALUES (
-        GENERATE_UUID(),
-        CONCAT('eventarc_autonomous_', @source_id),
-        @ingest_date,
-        @started_at,
-        CURRENT_TIMESTAMP(),
-        'SUCCESS',
-        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}` WHERE ingest_date = @ingest_date),
-        {silver_count_expr},
-        (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date AND @source_id IN UNNEST(source_ids))
-    );
-    """
-    log_job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
-            bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
-            bigquery.ScalarQueryParameter("started_at", "TIMESTAMP", started_at),
-        ]
-    )
-    bq_client.query(log_run_sql, job_config=log_job_config).result()
-
-    logger.info(f"[PIPELINE] Complete Medallion cycle succeeded for {source_id} (Bronze -> Silver -> Gold).")
-    return {"status": "SUCCESS", "pipeline_type": pipeline_type}
+            ).result()
+        except Exception as log_err:
+            logger.warning(f"Failed to record FAILED run in pipeline_runs: {log_err}")
+        raise exc
 
 
 def update_manifest_status(
@@ -541,7 +610,8 @@ def on_gcs_object_finalized(cloud_event: CloudEvent) -> Dict[str, Any]:
             bq_client=bq_client,
             source_id=source_id,
             ingest_date=ingest_date,
-            started_at=ingest_ts
+            started_at=ingest_ts,
+            file_name=file_name
         )
 
         # 6. Finalize manifest status
