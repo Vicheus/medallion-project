@@ -232,6 +232,97 @@ BEGIN
 END;
 
 -- =============================================================================
+-- Stored Procedure: sp_quarantine_invalid_records
+-- Isolates invalid or corrupted records into ops_monitoring.quarantined_records
+-- =============================================================================
+CREATE OR REPLACE PROCEDURE `ops_monitoring.sp_quarantine_invalid_records`(
+  p_ingest_date DATE,
+  p_source_id STRING
+)
+OPTIONS(strict_mode=false)
+BEGIN
+  DECLARE v_date DATE DEFAULT COALESCE(p_ingest_date, CURRENT_DATE());
+
+  -- 1. Quarantine for index_0500 (GIBDD Vehicles)
+  IF p_source_id = 'index_0500' OR p_source_id IS NULL THEN
+    DELETE FROM `ops_monitoring.quarantined_records` 
+    WHERE ingest_date = v_date AND source_id = 'index_0500' AND reason NOT LIKE 'SUPERNODE%';
+
+    INSERT INTO `ops_monitoring.quarantined_records` (
+      quarantine_id, source_id, source_entity_id, ingest_date, reason, raw_payload, created_at
+    )
+    SELECT
+      GENERATE_UUID(),
+      'index_0500',
+      source_entity_id,
+      v_date,
+      CASE
+        WHEN license_plate IS NULL OR TRIM(CAST(license_plate AS STRING)) = '' THEN 'MISSING_LICENSE_PLATE'
+        WHEN fio IS NULL OR TRIM(CAST(fio AS STRING)) = '' THEN 'MISSING_OWNER_NAME'
+        WHEN SAFE_CAST(manufacture_year AS INT64) < 1950 THEN FORMAT('INVALID_MANUFACTURE_YEAR: %s (< 1950)', CAST(manufacture_year AS STRING))
+        WHEN SAFE_CAST(manufacture_year AS INT64) > EXTRACT(YEAR FROM CURRENT_DATE()) + 1 THEN FORMAT('INVALID_MANUFACTURE_YEAR: %s (future year)', CAST(manufacture_year AS STRING))
+        ELSE 'OTHER_VALIDATION_FAILURE'
+      END,
+      FORMAT('Model: %s, Year: %s, Plate: %s, FIO: %s, Phone: %s',
+        COALESCE(CAST(model AS STRING), 'NULL'),
+        COALESCE(CAST(manufacture_year AS STRING), 'NULL'),
+        COALESCE(CAST(license_plate AS STRING), 'NULL'),
+        COALESCE(CAST(fio AS STRING), 'NULL'),
+        COALESCE(CAST(phone AS STRING), 'NULL')
+      ),
+      CURRENT_TIMESTAMP()
+    FROM `bronze.raw_index_0500`
+    WHERE ingest_date = v_date
+      AND (
+        license_plate IS NULL OR TRIM(CAST(license_plate AS STRING)) = ''
+        OR fio IS NULL OR TRIM(CAST(fio AS STRING)) = ''
+        OR SAFE_CAST(manufacture_year AS INT64) < 1950
+        OR SAFE_CAST(manufacture_year AS INT64) > EXTRACT(YEAR FROM CURRENT_DATE()) + 1
+      );
+  END IF;
+
+  -- 2. Quarantine for index_0020 (Sirena Rail Movements)
+  IF p_source_id = 'index_0020' OR p_source_id IS NULL THEN
+    DELETE FROM `ops_monitoring.quarantined_records` 
+    WHERE ingest_date = v_date AND source_id = 'index_0020' AND reason NOT LIKE 'SUPERNODE%';
+
+    INSERT INTO `ops_monitoring.quarantined_records` (
+      quarantine_id, source_id, source_entity_id, ingest_date, reason, raw_payload, created_at
+    )
+    SELECT
+      GENERATE_UUID(),
+      'index_0020',
+      source_entity_id,
+      v_date,
+      CASE
+        WHEN passenger_name IS NULL OR TRIM(CAST(passenger_name AS STRING)) = '' THEN 'MISSING_PASSENGER_NAME'
+        WHEN departure_date IS NULL OR silver.parse_date_safe(CAST(departure_date AS STRING)) IS NULL THEN 'INVALID_DEPARTURE_DATE'
+        WHEN port_from IS NULL OR port_to IS NULL THEN 'MISSING_STATION_ROUTE'
+        WHEN silver.parse_date_safe(CAST(arrival_date AS STRING)) < silver.parse_date_safe(CAST(departure_date AS STRING)) THEN FORMAT('INVALID_TRAVEL_DATES: arrival (%s) < departure (%s)', CAST(arrival_date AS STRING), CAST(departure_date AS STRING))
+        ELSE 'OTHER_VALIDATION_FAILURE'
+      END,
+      FORMAT('Ticket: %s, Passenger: %s, Route: %s -> %s, Departure: %s, Arrival: %s',
+        COALESCE(CAST(ticket_number AS STRING), 'NULL'),
+        COALESCE(CAST(passenger_name AS STRING), 'NULL'),
+        COALESCE(CAST(port_from AS STRING), 'NULL'),
+        COALESCE(CAST(port_to AS STRING), 'NULL'),
+        COALESCE(CAST(departure_date AS STRING), 'NULL'),
+        COALESCE(CAST(arrival_date AS STRING), 'NULL')
+      ),
+      CURRENT_TIMESTAMP()
+    FROM `bronze.raw_index_0020`
+    WHERE ingest_date = v_date
+      AND (
+        passenger_name IS NULL OR TRIM(CAST(passenger_name AS STRING)) = ''
+        OR departure_date IS NULL OR silver.parse_date_safe(CAST(departure_date AS STRING)) IS NULL
+        OR port_from IS NULL OR port_to IS NULL
+        OR (silver.parse_date_safe(CAST(arrival_date AS STRING)) IS NOT NULL AND silver.parse_date_safe(CAST(arrival_date AS STRING)) < silver.parse_date_safe(CAST(departure_date AS STRING)))
+      );
+  END IF;
+
+END;
+
+-- =============================================================================
 -- Stored Procedure: sp_run_discrepancy_checks
 -- =============================================================================
 CREATE OR REPLACE PROCEDURE `ops_monitoring.sp_run_discrepancy_checks`(

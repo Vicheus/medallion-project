@@ -2,13 +2,6 @@ config {
   type: "view",
   schema: "silver",
   description: "Cleansed and validated staging view for traffic police vehicle registrations and owners",
-  assertions: {
-    uniqueKey: ["source_id", "source_entity_id"],
-    nonNull: ["source_id", "source_entity_id", "license_plate", "owner_full_name"],
-    rowConditions: [
-      "manufacture_year >= 1950"
-    ]
-  },
   tags: ["index_0500", "staging", "vehicles"]
 }
 
@@ -36,4 +29,5 @@ SELECT
 FROM ${ref("raw_index_0500")}
 WHERE license_plate IS NOT NULL
   AND fio IS NOT NULL
+  AND (manufacture_year IS NULL OR (SAFE_CAST(manufacture_year AS INT64) >= 1950 AND SAFE_CAST(manufacture_year AS INT64) <= EXTRACT(YEAR FROM CURRENT_DATE()) + 1))
 QUALIFY ROW_NUMBER() OVER (PARTITION BY source_id, source_entity_id ORDER BY ingest_timestamp DESC) = 1

@@ -417,7 +417,7 @@ BEGIN
   FROM classified_profiles;
 
   -- Mirror suspicious clusters into ops_monitoring.quarantined_records for audit & observability
-  DELETE FROM `ops_monitoring.quarantined_records` WHERE ingest_date = v_date;
+  DELETE FROM `ops_monitoring.quarantined_records` WHERE ingest_date = v_date AND (reason LIKE 'SUPERNODE%' OR reason LIKE 'SUSPICIOUS%');
   INSERT INTO `ops_monitoring.quarantined_records` (
     quarantine_id, source_id, source_entity_id, ingest_date, reason, raw_payload
   )

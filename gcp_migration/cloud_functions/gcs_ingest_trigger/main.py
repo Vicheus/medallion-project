@@ -377,6 +377,17 @@ def trigger_downstream_pipeline(
                 logger.error(f"[DATAFORM] Execution error for {source_id}: {df_err}")
                 raise df_err
 
+        # Step 2.5: Quarantine Invalid / Defective Records (Row-level defects)
+        logger.info(f"[PIPELINE] Running quarantine isolation for source={source_id}, ingest_date={ingest_date}...")
+        quarantine_call = f"CALL `{PROJECT_ID}.{DATASET_OPS}.sp_quarantine_invalid_records`(@ingest_date, @source_id)"
+        quarantine_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+            ]
+        )
+        bq_client.query(quarantine_call, job_config=quarantine_job_config).result()
+
         # Step 3: Gold Identity Resolution & Consolidation
         logger.info(f"[PIPELINE] Executing Gold layer consolidation for ingest_date={ingest_date}...")
         gold_call = f"CALL `{PROJECT_ID}.{DATASET_GOLD}.sp_build_gold`(@ingest_date)"
@@ -427,6 +438,33 @@ def trigger_downstream_pipeline(
         except Exception as disc_err:
             logger.warning(f"Note: Could not query discrepancy summary: {disc_err}")
 
+        # Check for quarantined records in this run
+        quarantine_count_sql = f"""
+        SELECT COUNT(*) AS q_cnt, STRING_AGG(DISTINCT reason, ', ' LIMIT 3) AS q_reasons
+        FROM `{PROJECT_ID}.{DATASET_OPS}.quarantined_records`
+        WHERE source_id = @source_id AND ingest_date = @ingest_date
+        """
+        quarantined_rows = 0
+        try:
+            q_res = list(bq_client.query(
+                quarantine_count_sql,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("source_id", "STRING", source_id),
+                        bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
+                    ]
+                )
+            ).result())
+            if q_res and q_res[0].q_cnt > 0:
+                quarantined_rows = q_res[0].q_cnt
+                q_reasons = q_res[0].q_reasons or "validation_defects"
+                has_warning = True
+                q_note = f"Quarantined {quarantined_rows} invalid record(s) ({q_reasons})"
+                anomaly_messages.append(f"[{source_id}] {q_note}")
+                logger.warning(f"[ANOMALY] [source={source_id} file={file_name} run_id={run_id}] {q_note}")
+        except Exception as q_err:
+            logger.warning(f"Note: Could not check quarantined records count: {q_err}")
+
         # Step 5: Record execution in ops_monitoring.pipeline_runs
         silver_count_expr = f"(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_SILVER}.persons` WHERE source_id = @source_id AND ingest_date = @ingest_date)"
         if source_id == "index_0020":
@@ -446,7 +484,7 @@ def trigger_downstream_pipeline(
         log_run_sql = f"""
         INSERT INTO `{PROJECT_ID}.{DATASET_OPS}.pipeline_runs` (
             run_id, pipeline_name, ingest_date, started_at, completed_at, status,
-            total_bronze_rows, total_silver_rows, total_gold_rows, error_message
+            total_bronze_rows, total_silver_rows, total_gold_rows, quarantined_rows, error_message
         ) VALUES (
             @run_id,
             CONCAT('eventarc_autonomous_', @source_id),
@@ -457,6 +495,7 @@ def trigger_downstream_pipeline(
             (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}` WHERE ingest_date = @ingest_date),
             {silver_count_expr},
             (SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_GOLD}.person_profiles_master` WHERE ingest_date = @ingest_date AND @source_id IN UNNEST(source_ids)),
+            @quarantined_rows,
             @error_message
         );
         """
@@ -467,6 +506,7 @@ def trigger_downstream_pipeline(
                 bigquery.ScalarQueryParameter("ingest_date", "DATE", ingest_date),
                 bigquery.ScalarQueryParameter("started_at", "TIMESTAMP", started_at),
                 bigquery.ScalarQueryParameter("status", "STRING", final_status),
+                bigquery.ScalarQueryParameter("quarantined_rows", "INT64", quarantined_rows),
                 bigquery.ScalarQueryParameter("error_message", "STRING", combined_error),
             ]
         )

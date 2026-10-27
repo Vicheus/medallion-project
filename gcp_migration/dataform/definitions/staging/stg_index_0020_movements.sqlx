@@ -2,13 +2,6 @@ config {
   type: "view",
   schema: "silver",
   description: "Cleansed and validated staging view for passenger rail tickets and itineraries",
-  assertions: {
-    uniqueKey: ["source_id", "source_entity_id"],
-    nonNull: ["source_id", "source_entity_id", "passenger_name", "departure_date", "port_from", "port_to"],
-    rowConditions: [
-      "arrival_date >= departure_date"
-    ]
-  },
   tags: ["index_0020", "staging", "movements"]
 }
 
@@ -38,4 +31,6 @@ WHERE passenger_name IS NOT NULL
   AND departure_date IS NOT NULL
   AND port_from IS NOT NULL
   AND port_to IS NOT NULL
+  AND (silver.parse_date_safe(CAST(arrival_date AS STRING)) IS NULL 
+       OR silver.parse_date_safe(CAST(arrival_date AS STRING)) >= silver.parse_date_safe(CAST(departure_date AS STRING)))
 QUALIFY ROW_NUMBER() OVER (PARTITION BY source_id, source_entity_id ORDER BY ingest_timestamp DESC) = 1
