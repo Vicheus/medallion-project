@@ -317,18 +317,21 @@ def load_file_into_bronze(
                 bq_client.query(alter_sql).result()
                 table = bq_client.get_table(table_id)
 
-    # Load raw CSV into Bronze table using autodetect matching by CSV header names
+    # Load raw CSV into Bronze table
+    # When table exists with predefined STRING schema, autodetect must be False
+    # to prevent BigQuery from guessing INTEGER and conflicting with STRING schema.
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.CSV,
         skip_leading_rows=1,
-        autodetect=True,
+        autodetect=False if table else True,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-        schema_update_options=[bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION],
         allow_quoted_newlines=True,
         ignore_unknown_values=True
     )
+    if not table:
+        job_config.schema_update_options = [bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION]
 
-    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (All-String schema evolution enabled)")
+    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (autodetect={job_config.autodetect})")
     load_job = bq_client.load_table_from_uri(gcs_uri, table_id, job_config=job_config)
     load_job.result()  # Wait for job completion
     loaded_rows = load_job.output_rows or 0
