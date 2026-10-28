@@ -14,6 +14,8 @@ Discrepancy Checks: ops_monitoring.sp_run_discrepancy_checks
 
 import os
 import re
+import csv
+import io
 import json
 import uuid
 import logging
@@ -196,6 +198,45 @@ def purge_old_file_records(
     return deleted_rows
 
 
+def extract_csv_headers_from_gcs(gcs_uri: str) -> list:
+    """
+    Downloads the first chunk (up to 64KB) of a CSV from GCS and parses the header row.
+    Returns cleaned BigQuery-compatible column names (lowercase, alphanumeric).
+    """
+    try:
+        storage_client = storage.Client(project=PROJECT_ID)
+        bucket_name, blob_name = gcs_uri.replace("gs://", "").split("/", 1)
+        blob = storage_client.bucket(bucket_name).blob(blob_name)
+
+        # Download first 64KB (sufficient for wide tables with dozens of columns)
+        chunk = blob.download_as_bytes(start=0, end=65536)
+        text = chunk.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        if not lines:
+            return []
+
+        reader = csv.reader(io.StringIO(lines[0]))
+        raw_headers = next(reader, [])
+
+        clean_headers = []
+        seen = set()
+        for idx, h in enumerate(raw_headers):
+            clean_name = h.lstrip("\ufeff").strip()
+            clean_name = re.sub(r"[^a-zA-Z0-9_]", "_", clean_name)
+            if not clean_name or clean_name[0].isdigit():
+                clean_name = f"col_{clean_name}"
+            clean_name = clean_name.lower()
+            if clean_name in seen:
+                clean_name = f"{clean_name}_{idx}"
+            seen.add(clean_name)
+            clean_headers.append(clean_name)
+
+        return clean_headers
+    except Exception as exc:
+        logger.warning(f"Could not extract headers from {gcs_uri}: {exc}")
+        return []
+
+
 def load_file_into_bronze(
     bq_client: bigquery.Client,
     gcs_uri: str,
@@ -205,20 +246,62 @@ def load_file_into_bronze(
     ingest_timestamp: datetime
 ) -> int:
     """
-    Executes native BigQuery Load Job with autodetection,
-    then automatically adds and populates standard Bronze metadata fields:
-    (ingest_date, ingest_timestamp, file_name, source_id, source_entity_id).
+    Loads raw CSV into Bronze table using resilient All-String schema architecture.
+    Guarantees:
+    1. Table is initialized with all business columns as STRING (zero type-mismatch crashes).
+    2. New columns are detected and added dynamically via ALTER TABLE ... ADD COLUMN ... STRING.
+    3. Metadata fields (ingest_date, ingest_timestamp, file_name, source_id, source_entity_id) are enforced.
     """
     table_id = f"{PROJECT_ID}.{DATASET_BRONZE}.raw_{source_id}"
+    clean_headers = extract_csv_headers_from_gcs(gcs_uri)
 
     try:
-        bq_client.get_table(table_id)
+        table = bq_client.get_table(table_id)
         table_exists = True
     except Exception:
         table_exists = False
-        logger.info(f"Table {table_id} does not exist. Auto-creating table via LoadJob autodetection.")
+        table = None
 
-    # 1. Load raw CSV into Bronze table with automated Schema Evolution (ALLOW_FIELD_ADDITION)
+    if not table_exists:
+        if clean_headers:
+            # Build pure STRING schema for all business fields
+            schema = [bigquery.SchemaField(col, "STRING", mode="NULLABLE") for col in clean_headers]
+            # Ensure standard medallion metadata columns
+            standard_cols = {"ingest_date", "ingest_timestamp", "file_name", "source_id", "source_entity_id"}
+            if "ingest_date" not in clean_headers:
+                schema.append(bigquery.SchemaField("ingest_date", "DATE", mode="NULLABLE"))
+            if "ingest_timestamp" not in clean_headers:
+                schema.append(bigquery.SchemaField("ingest_timestamp", "TIMESTAMP", mode="NULLABLE"))
+            if "file_name" not in clean_headers:
+                schema.append(bigquery.SchemaField("file_name", "STRING", mode="NULLABLE"))
+            if "source_id" not in clean_headers:
+                schema.append(bigquery.SchemaField("source_id", "STRING", mode="NULLABLE"))
+            if "source_entity_id" not in clean_headers:
+                schema.append(bigquery.SchemaField("source_entity_id", "STRING", mode="NULLABLE"))
+
+            new_table = bigquery.Table(table_id, schema=schema)
+            new_table.time_partitioning = bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field="ingest_date"
+            )
+            bq_client.create_table(new_table)
+            logger.info(f"[BRONZE_INIT] Created new Bronze table {table_id} with {len(schema)} STRING columns (partitioned by ingest_date).")
+            table = bq_client.get_table(table_id)
+        else:
+            logger.info(f"Table {table_id} does not exist and headers empty. Will rely on LoadJob autodetection.")
+    else:
+        # Check if new columns exist in incoming CSV and alter table on the fly
+        if clean_headers:
+            existing_cols = {f.name.lower() for f in table.schema}
+            new_cols = [c for c in clean_headers if c not in existing_cols]
+            if new_cols:
+                alter_clauses = ", ".join([f"ADD COLUMN IF NOT EXISTS `{c}` STRING" for c in new_cols])
+                alter_sql = f"ALTER TABLE `{table_id}` {alter_clauses};"
+                logger.info(f"[SCHEMA_EVOLUTION] Adding {len(new_cols)} new STRING column(s) to {table_id}: {new_cols}")
+                bq_client.query(alter_sql).result()
+                table = bq_client.get_table(table_id)
+
+    # Load raw CSV into Bronze table using autodetect matching by CSV header names
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.CSV,
         skip_leading_rows=1,
@@ -229,7 +312,7 @@ def load_file_into_bronze(
         ignore_unknown_values=True
     )
 
-    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (autodetect=True, schema_update=ALLOW_FIELD_ADDITION)")
+    logger.info(f"[INGEST] Starting LoadJob: {gcs_uri} -> {table_id} (All-String schema evolution enabled)")
     load_job = bq_client.load_table_from_uri(gcs_uri, table_id, job_config=job_config)
     load_job.result()  # Wait for job completion
     loaded_rows = load_job.output_rows or 0
