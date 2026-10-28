@@ -113,8 +113,9 @@ class TestGcsIngestTrigger(unittest.TestCase):
         )
         self.assertEqual(deleted, 1500)
 
+    @patch("main.extract_csv_headers_from_gcs", return_value=["partner_id", "fio", "phone_number"])
     @patch("main.get_bigquery_client")
-    def test_cloudevent_dispatch_success(self, mock_get_client):
+    def test_cloudevent_dispatch_success(self, mock_get_client, mock_extract_headers):
         mock_bq = MagicMock()
         mock_get_client.return_value = mock_bq
 
@@ -152,14 +153,28 @@ class TestGcsIngestTrigger(unittest.TestCase):
         mock_bq = MagicMock()
         mock_get_client.return_value = mock_bq
 
-        # Mock catalog query returning METADATA_DRIVEN
-        mock_row = MagicMock()
-        mock_row.pipeline_type = "METADATA_DRIVEN"
-        mock_row.is_active = True
+        # Mock queries dynamically to ensure discrepancy & quarantine checks pass cleanly
+        def mock_query(sql, *args, **kwargs):
+            mock_res = MagicMock()
+            if "source_catalog" in sql:
+                mock_row = MagicMock()
+                mock_row.pipeline_type = "METADATA_DRIVEN"
+                mock_row.is_active = True
+                mock_res.result.return_value = [mock_row]
+            elif "layer_discrepancy_log" in sql:
+                mock_res.result.return_value = []
+            elif "quarantined_records" in sql:
+                mock_q = MagicMock()
+                mock_q.q_cnt = 0
+                mock_q.q_reasons = ""
+                mock_res.result.return_value = [mock_q]
+            else:
+                mock_cnt = MagicMock()
+                mock_cnt.__getitem__.return_value = 100
+                mock_res.result.return_value = [mock_cnt]
+            return mock_res
 
-        mock_query_job = MagicMock()
-        mock_query_job.result.return_value = [mock_row]
-        mock_bq.query.return_value = mock_query_job
+        mock_bq.query.side_effect = mock_query
 
         result = main.trigger_downstream_pipeline(
             bq_client=mock_bq,
@@ -191,14 +206,27 @@ class TestGcsIngestTrigger(unittest.TestCase):
         mock_df.create_workflow_invocation.return_value = mock_inv
         mock_df.get_workflow_invocation.return_value = mock_inv
 
-        # Mock catalog query returning DATAFORM_DAG
-        mock_row = MagicMock()
-        mock_row.pipeline_type = "DATAFORM_DAG"
-        mock_row.is_active = True
+        def mock_query(sql, *args, **kwargs):
+            mock_res = MagicMock()
+            if "source_catalog" in sql:
+                mock_row = MagicMock()
+                mock_row.pipeline_type = "DATAFORM_DAG"
+                mock_row.is_active = True
+                mock_res.result.return_value = [mock_row]
+            elif "layer_discrepancy_log" in sql:
+                mock_res.result.return_value = []
+            elif "quarantined_records" in sql:
+                mock_q = MagicMock()
+                mock_q.q_cnt = 0
+                mock_q.q_reasons = ""
+                mock_res.result.return_value = [mock_q]
+            else:
+                mock_cnt = MagicMock()
+                mock_cnt.__getitem__.return_value = 100
+                mock_res.result.return_value = [mock_cnt]
+            return mock_res
 
-        mock_query_job = MagicMock()
-        mock_query_job.result.return_value = [mock_row]
-        mock_bq.query.return_value = mock_query_job
+        mock_bq.query.side_effect = mock_query
 
         result = main.trigger_downstream_pipeline(
             bq_client=mock_bq,

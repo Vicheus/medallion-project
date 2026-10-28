@@ -539,13 +539,18 @@ def trigger_downstream_pipeline(
                     ]
                 )
             ).result())
-            if q_res and q_res[0].q_cnt > 0:
-                quarantined_rows = q_res[0].q_cnt
-                q_reasons = q_res[0].q_reasons or "validation_defects"
-                has_warning = True
-                q_note = f"Quarantined {quarantined_rows} invalid record(s) ({q_reasons})"
-                anomaly_messages.append(f"[{source_id}] {q_note}")
-                logger.warning(f"[ANOMALY] [source={source_id} file={file_name} run_id={run_id}] {q_note}")
+            if q_res and hasattr(q_res[0], "q_cnt"):
+                try:
+                    q_val = int(q_res[0].q_cnt)
+                except (ValueError, TypeError):
+                    q_val = 0
+                if q_val > 0:
+                    quarantined_rows = q_val
+                    q_reasons = getattr(q_res[0], "q_reasons", None) or "validation_defects"
+                    has_warning = True
+                    q_note = f"Quarantined {quarantined_rows} invalid record(s) ({q_reasons})"
+                    anomaly_messages.append(f"[{source_id}] {q_note}")
+                    logger.warning(f"[ANOMALY] [source={source_id} file={file_name} run_id={run_id}] {q_note}")
         except Exception as q_err:
             logger.warning(f"Note: Could not check quarantined records count: {q_err}")
 
