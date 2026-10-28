@@ -264,19 +264,28 @@ def load_file_into_bronze(
 
     if not table_exists:
         if clean_headers:
-            # Build pure STRING schema for all business fields
-            schema = [bigquery.SchemaField(col, "STRING", mode="NULLABLE") for col in clean_headers]
+            # Build schema: all business fields are STRING, while partitioning/timestamp fields maintain exact temporal types
+            schema = []
+            seen = set()
+            for col in clean_headers:
+                if col == "ingest_date":
+                    schema.append(bigquery.SchemaField("ingest_date", "DATE", mode="NULLABLE"))
+                elif col == "ingest_timestamp":
+                    schema.append(bigquery.SchemaField("ingest_timestamp", "TIMESTAMP", mode="NULLABLE"))
+                else:
+                    schema.append(bigquery.SchemaField(col, "STRING", mode="NULLABLE"))
+                seen.add(col)
+
             # Ensure standard medallion metadata columns
-            standard_cols = {"ingest_date", "ingest_timestamp", "file_name", "source_id", "source_entity_id"}
-            if "ingest_date" not in clean_headers:
+            if "ingest_date" not in seen:
                 schema.append(bigquery.SchemaField("ingest_date", "DATE", mode="NULLABLE"))
-            if "ingest_timestamp" not in clean_headers:
+            if "ingest_timestamp" not in seen:
                 schema.append(bigquery.SchemaField("ingest_timestamp", "TIMESTAMP", mode="NULLABLE"))
-            if "file_name" not in clean_headers:
+            if "file_name" not in seen:
                 schema.append(bigquery.SchemaField("file_name", "STRING", mode="NULLABLE"))
-            if "source_id" not in clean_headers:
+            if "source_id" not in seen:
                 schema.append(bigquery.SchemaField("source_id", "STRING", mode="NULLABLE"))
-            if "source_entity_id" not in clean_headers:
+            if "source_entity_id" not in seen:
                 schema.append(bigquery.SchemaField("source_entity_id", "STRING", mode="NULLABLE"))
 
             new_table = bigquery.Table(table_id, schema=schema)
@@ -285,7 +294,7 @@ def load_file_into_bronze(
                 field="ingest_date"
             )
             bq_client.create_table(new_table)
-            logger.info(f"[BRONZE_INIT] Created new Bronze table {table_id} with {len(schema)} STRING columns (partitioned by ingest_date).")
+            logger.info(f"[BRONZE_INIT] Created new Bronze table {table_id} with {len(schema)} columns (partitioned by ingest_date DATE).")
             table = bq_client.get_table(table_id)
         else:
             logger.info(f"Table {table_id} does not exist and headers empty. Will rely on LoadJob autodetection.")
@@ -295,9 +304,16 @@ def load_file_into_bronze(
             existing_cols = {f.name.lower() for f in table.schema}
             new_cols = [c for c in clean_headers if c not in existing_cols]
             if new_cols:
-                alter_clauses = ", ".join([f"ADD COLUMN IF NOT EXISTS `{c}` STRING" for c in new_cols])
-                alter_sql = f"ALTER TABLE `{table_id}` {alter_clauses};"
-                logger.info(f"[SCHEMA_EVOLUTION] Adding {len(new_cols)} new STRING column(s) to {table_id}: {new_cols}")
+                alter_clauses = []
+                for c in new_cols:
+                    if c == "ingest_date":
+                        alter_clauses.append("ADD COLUMN IF NOT EXISTS `ingest_date` DATE")
+                    elif c == "ingest_timestamp":
+                        alter_clauses.append("ADD COLUMN IF NOT EXISTS `ingest_timestamp` TIMESTAMP")
+                    else:
+                        alter_clauses.append(f"ADD COLUMN IF NOT EXISTS `{c}` STRING")
+                alter_sql = f"ALTER TABLE `{table_id}` " + ", ".join(alter_clauses) + ";"
+                logger.info(f"[SCHEMA_EVOLUTION] Adding {len(new_cols)} new column(s) to {table_id}: {new_cols}")
                 bq_client.query(alter_sql).result()
                 table = bq_client.get_table(table_id)
 
