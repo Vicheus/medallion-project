@@ -320,13 +320,16 @@ def load_file_into_bronze(
     # Load raw CSV into Bronze table
     # When table exists with predefined STRING schema, autodetect must be False
     # to prevent BigQuery from guessing INTEGER and conflicting with STRING schema.
+    # We enforce source_column_match="NAME" so columns are matched strictly by header name,
+    # regardless of column order or missing (deleted) columns.
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.CSV,
         skip_leading_rows=1,
         autodetect=False if table else True,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
         allow_quoted_newlines=True,
-        ignore_unknown_values=True
+        ignore_unknown_values=True,
+        source_column_match=bigquery.enums.SourceColumnMatch.NAME,
     )
     if not table:
         job_config.schema_update_options = [bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION]

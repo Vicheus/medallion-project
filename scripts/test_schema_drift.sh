@@ -79,6 +79,7 @@ clean_gcp_data() {
 
 poll_pipeline_run() {
   local target_file="$1"
+  local since_time="$2"
   log_info "Waiting for Cloud Run Function to process ${target_file} (polling ops_monitoring.pipeline_runs)..."
 
   local attempt=0
@@ -87,11 +88,12 @@ poll_pipeline_run() {
     sleep 5
     attempt=$((attempt + 1))
 
-    # Query latest run
+    # Query latest run started since upload
     local status
     status=$(bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false --format=csv \
       "SELECT status FROM \`ops_monitoring.pipeline_runs\` 
        WHERE pipeline_name = 'eventarc_autonomous_${SOURCE_ID}' 
+         AND started_at >= '${since_time}'
        ORDER BY started_at DESC LIMIT 1" 2>/dev/null | tail -n 1 || echo "")
 
     if [[ -n "$status" && "$status" != "status" ]]; then
@@ -103,6 +105,7 @@ poll_pipeline_run() {
         bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false \
           "SELECT run_id, status, error_message FROM \`ops_monitoring.pipeline_runs\` 
            WHERE pipeline_name = 'eventarc_autonomous_${SOURCE_ID}' 
+             AND started_at >= '${since_time}'
            ORDER BY started_at DESC LIMIT 1"
         return 1
       fi
@@ -117,11 +120,13 @@ poll_pipeline_run() {
 run_v1_original() {
   log_step "Phase 1: Ingesting Original Dataset (v1)"
   local gcs_dest="gs://${BUCKET_NAME}/raw/${SOURCE_ID}/index_0001_v1_original.csv"
-  
+  local since_time
+  since_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
   log_info "Uploading V1 original CSV to ${gcs_dest}..."
   gcloud storage cp "${V1_FILE}" "${gcs_dest}"
 
-  poll_pipeline_run "index_0001_v1_original.csv"
+  poll_pipeline_run "index_0001_v1_original.csv" "${since_time}"
 
   log_info "Inspecting Bronze Schema to verify All-String creation:"
   bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false \
@@ -149,11 +154,13 @@ run_v2_schema_drift() {
   log_info "  - Data Type CHANGED:   passport_number contains alphanumeric strings ('МР-...')"
 
   local gcs_dest="gs://${BUCKET_NAME}/raw/${SOURCE_ID}/index_0001_v2_schema_drift.csv"
-  
+  local since_time
+  since_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
   log_info "Uploading V2 drift CSV to ${gcs_dest}..."
   gcloud storage cp "${V2_FILE}" "${gcs_dest}"
 
-  poll_pipeline_run "index_0001_v2_schema_drift.csv"
+  poll_pipeline_run "index_0001_v2_schema_drift.csv" "${since_time}"
 
   log_info "Inspecting Bronze Schema to verify new column addition (ALLOW_FIELD_ADDITION):"
   bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false \
@@ -182,6 +189,45 @@ run_v2_schema_drift() {
   "
 }
 
+run_v3_yaml_evolution() {
+  log_step "Phase 3: Demonstrating Analyst YAML Evolution"
+  log_info "Updating index_0001.yaml to support renamed contact_phone via COALESCE..."
+  
+  local yaml_file="${ROOT_DIR}/gcp_migration/metadata/sources/index_0001.yaml"
+  local backup_file="${yaml_file}.bak"
+  cp "${yaml_file}" "${backup_file}"
+
+  # Update phone_number to COALESCE(contact_phone, phone_number)
+  sed -i '' 's/value_col: "phone_number"/value_col: "COALESCE(contact_phone, phone_number)"/g' "${yaml_file}"
+  # Comment out room_col
+  sed -i '' 's/room_col: "room_number"/# room_col: "room_number" # dropped in v2/g' "${yaml_file}"
+
+  log_info "Syncing updated YAML into BigQuery ops_monitoring.source_catalog..."
+  "${ROOT_DIR}/.venv/bin/python" "${ROOT_DIR}/gcp_migration/metadata/sync_catalog.py"
+
+  log_info "Re-running Silver & Gold extraction for current date to capture renamed phone contacts..."
+  bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false "
+    CALL \`silver.sp_transform_metadata_source\`('${SOURCE_ID}', CURRENT_DATE());
+    CALL \`gold.sp_build_gold\`(CURRENT_DATE());
+  "
+
+  log_info "Verifying that contacts from BOTH v1 (phone_number) and v2 (contact_phone) are now extracted:"
+  bq query --project_id="${PROJECT_ID}" --use_legacy_sql=false "
+    SELECT 
+      contact_type, 
+      COUNT(*) AS total_contacts,
+      COUNT(DISTINCT contact_value) AS unique_contacts
+    FROM \`silver.contacts\`
+    WHERE source_id = '${SOURCE_ID}'
+    GROUP BY contact_type;
+  "
+
+  # Restore backup
+  mv "${backup_file}" "${yaml_file}"
+  "${ROOT_DIR}/.venv/bin/python" "${ROOT_DIR}/gcp_migration/metadata/sync_catalog.py" >/dev/null 2>&1
+  log_info "Restored original index_0001.yaml after test demonstration."
+}
+
 # Entry point logic
 ACTION="${1:-all}"
 
@@ -198,15 +244,20 @@ case "${ACTION}" in
     check_prerequisites
     run_v2_schema_drift
     ;;
+  v3)
+    check_prerequisites
+    run_v3_yaml_evolution
+    ;;
   all)
     check_prerequisites
     clean_gcp_data
     run_v1_original
     run_v2_schema_drift
-    log_step "SUCCESS: End-to-End Schema Drift Test Passed Completely!"
+    run_v3_yaml_evolution
+    log_step "SUCCESS: End-to-End Schema Drift & Evolution Test Passed Completely!"
     ;;
   *)
-    echo "Usage: $0 [all | clean | v1 | v2]"
+    echo "Usage: $0 [all | clean | v1 | v2 | v3]"
     exit 1
     ;;
 esac
