@@ -14,7 +14,7 @@ target_entities:
     actuality_date_col: "date_operation"
   contacts:
     - contact_type: "PHONE"
-      value_col: "phone_number"
+      value_col: "COALESCE(contact_phone, phone_number)"
     - contact_type: "EMAIL"
       value_col: "email"
   addresses:
@@ -23,7 +23,6 @@ target_entities:
     city_col: "city"
     street_col: "street"
     house_col: "house_number"
-    room_col: "room_number"
   documents:
     - doc_type: 0
       doc_type_name: "PASSPORT"
