@@ -102,16 +102,16 @@ gcloud functions deploy gcs-bronze-ingest-trigger \
   --runtime=python311 \
   --source=./gcp_migration/cloud_functions/gcs_ingest_trigger \
   --entry-point=on_gcs_object_finalized \
-  --service-account=medallion-pipeline@medallion-project-512608.iam.gserviceaccount.com \
+  --service-account=<SERVICE_ACCOUNT_EMAIL> \
   --memory=512Mi \
   --timeout=300s \
-  --set-env-vars=PROJECT_ID=medallion-project-512608,LOCATION=europe-west1
+  --set-env-vars=PROJECT_ID=<PROJECT_ID>,LOCATION=europe-west1
 ```
 
 ### 4. Ingesting Data
 Simply copy any CSV to the target source folder in Cloud Storage:
 ```bash
-gcloud storage cp my_data.csv gs://medallion-project-512608-raw-data/raw/index_0500/my_data.csv
+gcloud storage cp my_data.csv gs://<BUCKET_NAME>/raw/index_0500/my_data.csv
 ```
 The pipeline automatically executes:
 `GCS Upload` $\rightarrow$ `Bronze Ingest` $\rightarrow$ `Silver DAG / Extraction` $\rightarrow$ `Gold Resolution` $\rightarrow$ `Discrepancy Checks` $\rightarrow$ `Audit Run Log`.
@@ -124,14 +124,14 @@ The pipeline automatically executes:
 ```sql
 SELECT run_id, pipeline_name, ingest_date, started_at, completed_at, status, 
        total_bronze_rows, total_silver_rows, total_gold_rows, quarantined_rows, error_message
-FROM `medallion-project-512608.ops_monitoring.pipeline_runs`
+FROM `<PROJECT_ID>.ops_monitoring.pipeline_runs`
 ORDER BY started_at DESC LIMIT 10;
 ```
 
 ### Layer Discrepancy & Reconciliation Log
 ```sql
 SELECT source_id, check_name, status, expected_count, actual_count, discrepancy_count, details, check_timestamp
-FROM `medallion-project-512608.ops_monitoring.layer_discrepancy_log`
+FROM `<PROJECT_ID>.ops_monitoring.layer_discrepancy_log`
 WHERE ingest_date = CURRENT_DATE()
 ORDER BY check_timestamp DESC;
 ```
@@ -139,6 +139,12 @@ ORDER BY check_timestamp DESC;
 ### Quarantined Defective Records
 ```sql
 SELECT quarantine_id, source_id, reason, raw_payload, created_at
-FROM `medallion-project-512608.ops_monitoring.quarantined_records`
+FROM `<PROJECT_ID>.ops_monitoring.quarantined_records`
 ORDER BY created_at DESC LIMIT 20;
 ```
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
