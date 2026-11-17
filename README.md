@@ -37,7 +37,7 @@ flowchart TD
         GOLD_MASTER --> DISCREPANCY["ops_monitoring.sp_run_discrepancy_checks()"]
         DISCREPANCY --> DISCREPANCY_LOG["ops_monitoring.layer_discrepancy_log<br/>(Per-source drop rate, conservation, collisions)"]
         DISCREPANCY_LOG --> PIPELINE_RUNS["ops_monitoring.pipeline_runs<br/>(Execution status, quarantined counts)"]
-        CRF -->|Structured Logs: [ANOMALY] / [ERROR]| LOGGING["Cloud Logging"]
+        CRF -->|"Structured Logs: [ANOMALY] / [ERROR]"| LOGGING["Cloud Logging"]
         LOGGING --> METRIC["Log-based Metric: crf_ingest_errors"]
         METRIC --> ALERT["Cloud Monitoring Alert Policy<br/>(Email notifications)"]
     end
